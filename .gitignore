@@ -1,0 +1,60 @@
+# ==============================================================================
+# Báo cáo và Kế hoạch (Bỏ qua theo yêu cầu)
+# ==============================================================================
+báo cáo/
+[Bb]áo cáo/
+*[Bb]áo cáo*
+*báo_cáo*
+plan.md
+**/plan.md
+*plan*.md
+*PLAN*.md
+KE_HOACH*
+*ke_hoach*
+*kế_hoạch*
+build_*.js
+generate_*.js
+docx_helpers.js
+
+# ==============================================================================
+# Dependencies & Build Outputs
+# ==============================================================================
+# Node.js / Frontend
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Java / Gradle / Backend
+.gradle/
+**/.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+bin/
+**/bin/
+out/
+**/out/
+
+# IDE & OS Files
+.vscode/
+**/.vscode/
+.idea/
+**/.idea/
+*.iws
+*.iml
+*.ipr
+.DS_Store
+Thumbs.db
+*.suo
+*.user
+
+# Logs
+*.log
+logs/

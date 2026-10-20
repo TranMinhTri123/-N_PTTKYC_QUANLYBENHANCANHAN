@@ -1,0 +1,111 @@
+/* ==========================================================================
+   HỆ THỐNG QUẢN LÝ BỆNH ÁN CÁ NHÂN & SỨC KHỎE GIA ĐÌNH (PHR VIỆT NAM)
+   Global CSS & CSS Variables (Medical Design Tokens)
+   ========================================================================== */
+
+:root {
+  --color-primary-patient: #0284c7;
+  --color-primary-doctor: #0f766e;
+  --color-primary-admin: #1e293b;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #10b981;
+  --color-info: #0ea5e9;
+  --border-radius-base: 8px;
+  --transition-normal: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+  color: #1e293b;
+  min-height: 100vh;
+}
+
+/* 🌟 HIỆU ỨNG CẢNH BÁO NGUY HIỂM / DỊ ỨNG THUỐC NẶNG (ALLERGY PULSE) */
+@keyframes allergyPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    transform: scale(1);
+  }
+}
+
+.allergy-pulse {
+  animation: allergyPulse 1.8s infinite ease-in-out;
+  border: 1px solid #ef4444 !important;
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+/* Cảnh báo sốc phản vệ dược lý nổi bật */
+.anaphylaxis-banner {
+  border-left: 6px solid #dc2626 !important;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+}
+
+/* Custom Scrollbar cho trải nghiệm y tế mượt mà */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Accessibility: Khu vực chạm tối thiểu trên màn cảm ứng */
+button, a, input, select {
+  min-height: 38px;
+}
+
+/* Card bóng đổ nhẹ chuẩn y tế */
+.medical-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  transition: var(--transition-normal);
+}
+
+.medical-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+/* Định dạng in ấn tài liệu A4 chuẩn Bộ Y Tế */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print, header, aside, .ant-layout-sider, .ant-layout-header {
+    display: none !important;
+  }
+  .print-page {
+    width: 210mm;
+    margin: 0 auto;
+    padding: 10mm;
+  }
+}
