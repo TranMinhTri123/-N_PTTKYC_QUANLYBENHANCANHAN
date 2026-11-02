@@ -54,7 +54,6 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
-
     @ExceptionHandler(MessagingException.class)
     public ResponseEntity<ExceptionResponse> handleException(MessagingException exp){
         return ResponseEntity
@@ -82,11 +81,16 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ExceptionResponse> handleException(IllegalArgumentException exp){
+    @ExceptionHandler({
+            com.spring.temp.exception.BadRequestException.class,
+            IllegalArgumentException.class,
+            IllegalStateException.class
+    })
+    public ResponseEntity<ExceptionResponse> handleBadRequestException(RuntimeException exp){
         return ResponseEntity
                 .status(BAD_REQUEST)
                 .body(ExceptionResponse.builder()
+                        .errorCode(400)
                         .errorDescription(exp.getMessage())
                         .error(exp.getMessage())
                         .build());
@@ -98,6 +102,27 @@ public class GlobalExceptionHandler {
                 .status(BAD_REQUEST)
                 .body(ExceptionResponse.builder()
                         .errorDescription(exp.getMessage())
+                        .error(exp.getMessage())
+                        .build());
+    }
+
+    @ExceptionHandler({com.spring.temp.exception.NotFoundException.class, com.spring.temp.exception.UserNotFoundException.class})
+    public ResponseEntity<ExceptionResponse> handleNotFoundException(RuntimeException exp){
+        return ResponseEntity
+                .status(NOT_FOUND)
+                .body(ExceptionResponse.builder()
+                        .errorDescription(exp.getMessage())
+                        .error(exp.getMessage())
+                        .build());
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ExceptionResponse> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException exp){
+        return ResponseEntity
+                .status(FORBIDDEN)
+                .body(ExceptionResponse.builder()
+                        .errorCode(403)
+                        .errorDescription("Từ chối quyền truy cập: Bạn không có quyền thực hiện thao tác này.")
                         .error(exp.getMessage())
                         .build());
     }

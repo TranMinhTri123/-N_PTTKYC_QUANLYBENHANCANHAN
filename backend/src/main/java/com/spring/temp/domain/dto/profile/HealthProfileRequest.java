@@ -29,6 +29,7 @@ public class HealthProfileRequest {
     private Gender gender;
 
     private String bloodType;
+    private String phone;
 
     @Pattern(regexp = "^$|^[0-9]{9}$|^[0-9]{12}$", message = "Số CCCD phải gồm 9 hoặc 12 chữ số")
     private String cccd;

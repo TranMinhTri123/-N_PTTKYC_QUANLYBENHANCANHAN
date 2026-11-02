@@ -4,5 +4,7 @@ public enum RecordType {
     INTERNAL,   // Nội khoa
     SURGICAL,   // Ngoại khoa
     PEDIATRIC,  // Nhi khoa
-    OBSTETRIC   // Sản khoa
+    OBSTETRIC,  // Sản khoa
+    GENERAL     // Khám bệnh chung
 }
+

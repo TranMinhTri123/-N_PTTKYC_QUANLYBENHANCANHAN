@@ -142,7 +142,8 @@ export const AdminUsersPage = () => {
     const emailMatch = u.email?.toLowerCase().includes(term);
     const phoneMatch = u.phone?.toLowerCase().includes(term);
     const deptMatch = u.department?.toLowerCase().includes(term);
-    return nameMatch || emailMatch || phoneMatch || deptMatch;
+    const hospMatch = u.hospitalName?.toLowerCase().includes(term);
+    return nameMatch || emailMatch || phoneMatch || deptMatch || hospMatch;
   });
 
   const getRoleTag = (roles = []) => {
@@ -202,18 +203,27 @@ export const AdminUsersPage = () => {
       render: (roles) => getRoleTag(roles),
     },
     {
-      title: 'Khoa / Chuyên môn',
+      title: 'Khoa / Bệnh viện',
       dataIndex: 'department',
       key: 'department',
       render: (dept, r) => {
         const isDoctor = r.roles?.includes('ROLE_DOCTOR');
         if (isDoctor) {
-          return dept ? (
-            <Tag color="geekblue" icon={<MedicineBoxOutlined />} style={{ fontWeight: 600, padding: '3px 8px' }}>
-              {dept}
-            </Tag>
-          ) : (
-            <Tag color="warning">Chưa phân bổ khoa</Tag>
+          return (
+            <div>
+              {dept ? (
+                <Tag color="geekblue" icon={<MedicineBoxOutlined />} style={{ fontWeight: 600, padding: '3px 8px' }}>
+                  {dept}
+                </Tag>
+              ) : (
+                <Tag color="warning">Chưa phân bổ khoa</Tag>
+              )}
+              {r.hospitalName && (
+                <div style={{ fontSize: 11, color: '#0369a1', marginTop: 4, fontWeight: 500 }}>
+                  🏥 {r.hospitalName}
+                </div>
+              )}
+            </div>
           );
         }
         return <Text type="secondary">—</Text>;

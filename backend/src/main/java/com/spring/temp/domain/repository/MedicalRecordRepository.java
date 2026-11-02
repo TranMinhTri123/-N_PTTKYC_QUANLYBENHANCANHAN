@@ -25,4 +25,14 @@ public interface MedicalRecordRepository extends JpaRepository<MedicalRecord, Lo
     Page<MedicalRecord> findByProfileIdInAndDeletedFalse(java.util.List<Long> profileIds, Pageable pageable);
 
     Page<MedicalRecord> findByProfileIdInAndRecordTypeAndDeletedFalse(java.util.List<Long> profileIds, RecordType recordType, Pageable pageable);
+
+    Page<MedicalRecord> findByPatientIdAndStatusAndIsLatestTrueAndDeletedFalse(Long patientId, com.spring.temp.domain.model.enums.EncounterStatus status, Pageable pageable);
+
+    Page<MedicalRecord> findByPatientIdAndDeletedFalse(Long patientId, Pageable pageable);
+
+    Page<MedicalRecord> findByDoctorIdAndDeletedFalse(Long doctorId, Pageable pageable);
+
+    Optional<MedicalRecord> findByIdAndStatusAndIsLatestTrueAndDeletedFalse(Long id, com.spring.temp.domain.model.enums.EncounterStatus status);
+
+    boolean existsByDoctorIdAndPatientId(Long doctorId, Long patientId);
 }

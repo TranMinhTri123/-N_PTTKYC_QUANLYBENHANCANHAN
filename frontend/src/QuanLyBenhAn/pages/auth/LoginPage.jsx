@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, Checkbox, Typography, Divider, Alert, Space, Card, Tag } from 'antd';
-import { UserOutlined, LockOutlined, LoginOutlined, SafetyOutlined } from '@ant-design/icons';
+import { Form, Input, Button, Checkbox, Typography, Alert, Divider, Tag } from 'antd';
+import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -39,7 +39,6 @@ export const LoginPage = () => {
     }
   };
 
-  // Điền nhanh tài khoản kiểm thử
   const fillQuickAccount = (email, pwd) => {
     form.setFieldsValue({ email, password: pwd });
   };
@@ -51,7 +50,7 @@ export const LoginPage = () => {
           Đăng Nhập Hệ Thống
         </Title>
         <Text type="secondary" style={{ fontSize: 14 }}>
-          Chọn đúng tài khoản để truy cập vào phân hệ tương ứng
+          Nhập thông tin tài khoản để truy cập vào hệ thống hồ sơ bệnh án
         </Text>
       </div>
 
@@ -61,30 +60,29 @@ export const LoginPage = () => {
           type="error"
           showIcon
           closable
-          style={{ marginBottom: 20 }}
-          onClose={() => setErrorMsg('')}
+          style={{ marginBottom: 20, borderRadius: 8 }}
         />
       )}
 
       <Form
         form={form}
-        name="login_form"
         layout="vertical"
-        initialValues={{ remember: true }}
         onFinish={onFinish}
+        initialValues={{ remember: true }}
         size="large"
       >
         <Form.Item
           name="email"
           label={<span style={{ fontWeight: 600 }}>Địa chỉ Email</span>}
           rules={[
-            { required: true, message: 'Vui lòng nhập địa chỉ email!' },
-            { type: 'email', message: 'Email không đúng định dạng!' },
+            { required: true, message: 'Vui lòng nhập Email!' },
+            { type: 'email', message: 'Email không hợp lệ!' },
           ]}
         >
           <Input
             prefix={<UserOutlined style={{ color: '#94a3b8' }} />}
             placeholder="example@phr.vn"
+            autoComplete="email"
           />
         </Form.Item>
 
@@ -96,6 +94,7 @@ export const LoginPage = () => {
           <Input.Password
             prefix={<LockOutlined style={{ color: '#94a3b8' }} />}
             placeholder="Nhập mật khẩu"
+            autoComplete="current-password"
           />
         </Form.Item>
 
@@ -103,12 +102,12 @@ export const LoginPage = () => {
           <Form.Item name="remember" valuePropName="checked" noStyle>
             <Checkbox>Ghi nhớ đăng nhập</Checkbox>
           </Form.Item>
-          <Link to="/forgot-password" style={{ color: '#0284c7', fontWeight: 500 }}>
+          <Link to="/forgot-password" style={{ color: '#0284c7', fontSize: 14 }}>
             Quên mật khẩu?
           </Link>
         </div>
 
-        <Form.Item style={{ marginBottom: 12 }}>
+        <Form.Item style={{ marginBottom: 20 }}>
           <Button
             type="primary"
             htmlType="submit"
@@ -122,31 +121,32 @@ export const LoginPage = () => {
         </Form.Item>
       </Form>
 
-      <Divider style={{ margin: '18px 0', fontSize: 13, color: '#94a3b8' }}>
-        Tài khoản kiểm thử nhanh (Demo)
+      {/* TÍNH NĂNG CHỌN NHANH TÀI KHOẢN THEO 3 ROLE ĐỂ TEST NHANH */}
+      <Divider style={{ margin: '14px 0 16px 0', fontSize: 13, color: '#94a3b8' }}>
+        Tài khoản kiểm thử nhanh (1 chạm)
       </Divider>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 20 }}>
         <Tag
           color="blue"
-          style={{ cursor: 'pointer', padding: '4px 8px' }}
+          style={{ cursor: 'pointer', padding: '6px 12px', fontSize: 13, borderRadius: 6, fontWeight: 500 }}
           onClick={() => fillQuickAccount('admin@phr.vn', 'Admin@123')}
         >
-          Admin (admin@phr.vn)
+          🛡️ Admin (admin@phr.vn)
         </Tag>
         <Tag
           color="cyan"
-          style={{ cursor: 'pointer', padding: '4px 8px' }}
-          onClick={() => fillQuickAccount('doctor@phr.vn', 'Doctor@123')}
+          style={{ cursor: 'pointer', padding: '6px 12px', fontSize: 13, borderRadius: 6, fontWeight: 500 }}
+          onClick={() => fillQuickAccount('doctor@phr.vn', 'Admin@123')}
         >
-          Bác sĩ (doctor@phr.vn)
+          👨‍⚕️ Bác sĩ (doctor@phr.vn)
         </Tag>
         <Tag
           color="green"
-          style={{ cursor: 'pointer', padding: '4px 8px' }}
+          style={{ cursor: 'pointer', padding: '6px 12px', fontSize: 13, borderRadius: 6, fontWeight: 500 }}
           onClick={() => fillQuickAccount('minhtri210595@gmail.com', 'Password@123')}
         >
-          Bệnh nhân (User)
+          👤 Bệnh nhân (minhtri210595@gmail.com)
         </Tag>
       </div>
 

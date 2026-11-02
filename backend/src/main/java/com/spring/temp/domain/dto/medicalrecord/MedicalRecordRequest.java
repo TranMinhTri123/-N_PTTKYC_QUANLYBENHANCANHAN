@@ -27,7 +27,7 @@ public class MedicalRecordRequest {
     private Long profileId;
 
     @NotNull(message = "Loại bệnh án không được để trống")
-    @Schema(description = "Loại bệnh án chuyên khoa: INTERNAL (Nội), SURGICAL (Ngoại), PEDIATRIC (Nhi), OBSTETRIC (Sản)", example = "INTERNAL")
+    @Schema(description = "Loại bệnh án: INTERNAL (Nội), SURGICAL (Ngoại), PEDIATRIC (Nhi), OBSTETRIC (Sản), GENERAL (Khám bệnh chung)", example = "GENERAL")
     private RecordType recordType;
 
     @NotBlank(message = "Tên cơ sở y tế / Bệnh viện không được để trống")

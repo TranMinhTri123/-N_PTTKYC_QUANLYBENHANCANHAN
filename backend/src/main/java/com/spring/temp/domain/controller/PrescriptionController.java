@@ -50,7 +50,8 @@ public class PrescriptionController {
 
     @PostMapping("prescriptions")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "4.2 Kê đơn thuốc mới (Tự động phát hiện dị ứng)", 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "4.2 Kê đơn thuốc mới (Chỉ Bác sĩ / Quản trị viên)", 
                description = "Tạo đơn thuốc cho đợt khám. Hệ thống tự động đối chiếu tiền sử dị ứng người bệnh và gắn cờ cảnh báo nếu thuốc trùng dị ứng.")
     public ResponseEntity<ApiResponse<PrescriptionResponse>> createPrescription(
             @RequestBody @Valid PrescriptionRequest request,
@@ -97,7 +98,8 @@ public class PrescriptionController {
     }
 
     @DeleteMapping("prescriptions/{id}")
-    @Operation(summary = "4.6 Xóa mềm đơn thuốc", 
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "4.6 Xóa mềm đơn thuốc (Chỉ Bác sĩ / Quản trị viên)", 
                description = "Đánh dấu xóa mềm đơn thuốc (deleted = true)")
     public ResponseEntity<ApiResponse<Void>> deletePrescription(
             @PathVariable Long id,

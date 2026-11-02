@@ -20,4 +20,6 @@ public class UserSummaryResponse {
     private LocalDate dateOfBirth;
     private List<String> roles;
     private String department;
+    private String hospitalName;
+    private String specialtyCode;
 }

@@ -1,6 +1,7 @@
 package com.spring.temp.domain.service;
 
 import com.lowagie.text.*;
+import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
@@ -8,19 +9,25 @@ import com.spring.temp.domain.model.MedicalRecord;
 import com.spring.temp.domain.model.Prescription;
 import com.spring.temp.domain.model.PrescriptionItem;
 import com.spring.temp.domain.model.VitalSigns;
+import com.spring.temp.domain.model.enums.*;
 import com.spring.temp.domain.repository.MedicalRecordRepository;
 import com.spring.temp.domain.repository.PrescriptionRepository;
 import com.spring.temp.domain.repository.VitalSignsRepository;
 import com.spring.temp.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MedicalRecordPdfService {
@@ -31,6 +38,54 @@ public class MedicalRecordPdfService {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final DateTimeFormatter DAY_ONLY_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    private BaseFont baseFontRegular;
+    private BaseFont baseFontBold;
+    private BaseFont baseFontItalic;
+    private boolean fontsInitialized = false;
+
+    private synchronized void initFonts() {
+        if (fontsInitialized) return;
+        try {
+            byte[] regBytes = loadFontBytes("/fonts/arial.ttf", "C:/Windows/Fonts/arial.ttf");
+            byte[] boldBytes = loadFontBytes("/fonts/arialbd.ttf", "C:/Windows/Fonts/arialbd.ttf");
+            byte[] italBytes = loadFontBytes("/fonts/ariali.ttf", "C:/Windows/Fonts/ariali.ttf");
+
+            if (regBytes != null) {
+                baseFontRegular = BaseFont.createFont("arial.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, regBytes, null);
+            }
+            if (boldBytes != null) {
+                baseFontBold = BaseFont.createFont("arialbd.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, boldBytes, null);
+            } else {
+                baseFontBold = baseFontRegular;
+            }
+            if (italBytes != null) {
+                baseFontItalic = BaseFont.createFont("ariali.ttf", BaseFont.IDENTITY_H, BaseFont.EMBEDDED, true, italBytes, null);
+            } else {
+                baseFontItalic = baseFontRegular;
+            }
+            log.info("Khởi tạo phông chữ Unicode TrueType cho PDF thành công.");
+        } catch (Exception e) {
+            log.error("Không thể tải phông chữ TrueType Unicode, sử dụng phông chữ dự phòng: {}", e.getMessage());
+        } finally {
+            fontsInitialized = true;
+        }
+    }
+
+    private byte[] loadFontBytes(String resourcePath, String systemPath) {
+        try (InputStream is = getClass().getResourceAsStream(resourcePath)) {
+            if (is != null) {
+                return is.readAllBytes();
+            }
+        } catch (Exception ignored) {}
+        try {
+            File file = new File(systemPath);
+            if (file.exists()) {
+                return Files.readAllBytes(file.toPath());
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
 
     @Transactional(readOnly = true)
     public byte[] generateMedicalRecordPdf(Long medicalRecordId) {
@@ -45,13 +100,19 @@ public class MedicalRecordPdfService {
             PdfWriter.getInstance(document, out);
             document.open();
 
+            initFonts();
+
             // Font styles
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, Font.BOLD, new Color(18, 52, 86));
-            Font subTitleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Font.BOLD, Color.DARK_GRAY);
-            Font sectionFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Font.BOLD, new Color(0, 102, 153));
-            Font textFont = FontFactory.getFont(FontFactory.HELVETICA, 10, Font.NORMAL, Color.BLACK);
-            Font boldTextFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Font.BOLD, Color.BLACK);
-            Font smallFont = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9, Font.ITALIC, Color.GRAY);
+            Font titleFont = baseFontBold != null ? new Font(baseFontBold, 15, Font.BOLD, new Color(18, 52, 86)) : FontFactory.getFont(FontFactory.HELVETICA_BOLD, 15, Font.BOLD, new Color(18, 52, 86));
+            Font subTitleFont = baseFontBold != null ? new Font(baseFontBold, 11, Font.BOLD, Color.DARK_GRAY) : FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, Font.BOLD, Color.DARK_GRAY);
+            Font sectionFont = baseFontBold != null ? new Font(baseFontBold, 12, Font.BOLD, new Color(0, 102, 153)) : FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, Font.BOLD, new Color(0, 102, 153));
+            Font textFont = baseFontRegular != null ? new Font(baseFontRegular, 10, Font.NORMAL, Color.BLACK) : FontFactory.getFont(FontFactory.HELVETICA, 10, Font.NORMAL, Color.BLACK);
+            Font boldTextFont = baseFontBold != null ? new Font(baseFontBold, 10, Font.BOLD, Color.BLACK) : FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, Font.BOLD, Color.BLACK);
+            Font smallFont = baseFontItalic != null ? new Font(baseFontItalic, 9, Font.ITALIC, Color.GRAY) : FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9, Font.ITALIC, Color.GRAY);
+            Font headerBoldFont = baseFontBold != null ? new Font(baseFontBold, 10, Font.BOLD, Color.BLACK) : FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+            Font headerSmallBoldFont = baseFontBold != null ? new Font(baseFontBold, 9, Font.BOLD, Color.BLACK) : FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+            Font headerRegularSmall = baseFontRegular != null ? new Font(baseFontRegular, 9, Font.NORMAL, Color.BLACK) : FontFactory.getFont(FontFactory.HELVETICA, 9);
+            Font headerItalicSmall = baseFontItalic != null ? new Font(baseFontItalic, 9, Font.ITALIC, Color.BLACK) : FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9);
 
             // 1. Quốc hiệu - Tiêu ngữ & Đơn vị
             PdfPTable headerTable = new PdfPTable(2);
@@ -60,17 +121,17 @@ public class MedicalRecordPdfService {
 
             PdfPCell leftHeader = new PdfPCell();
             leftHeader.setBorder(Rectangle.NO_BORDER);
-            leftHeader.addElement(new Paragraph("BỘ Y TẾ VIỆT NAM", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
-            leftHeader.addElement(new Paragraph("HỆ THỐNG HỒ SƠ SỨC KHỎE PHR", FontFactory.getFont(FontFactory.HELVETICA, 9)));
-            leftHeader.addElement(new Paragraph("Khoa: " + (record.getDepartmentName() != null ? record.getDepartmentName() : "Đa khoa"), FontFactory.getFont(FontFactory.HELVETICA, 9)));
+            leftHeader.addElement(new Paragraph("BỘ Y TẾ VIỆT NAM", headerBoldFont));
+            leftHeader.addElement(new Paragraph("HỆ THỐNG HỒ SƠ SỨC KHỎE PHR", headerRegularSmall));
+            leftHeader.addElement(new Paragraph("Khoa: " + (record.getDepartmentName() != null ? record.getDepartmentName() : "Đa khoa"), headerRegularSmall));
             headerTable.addCell(leftHeader);
 
             PdfPCell rightHeader = new PdfPCell();
             rightHeader.setBorder(Rectangle.NO_BORDER);
             rightHeader.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            Paragraph pMotto1 = new Paragraph("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9));
+            Paragraph pMotto1 = new Paragraph("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", headerSmallBoldFont);
             pMotto1.setAlignment(Element.ALIGN_RIGHT);
-            Paragraph pMotto2 = new Paragraph("Độc lập - Tự do - Hạnh phúc", FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 9));
+            Paragraph pMotto2 = new Paragraph("Độc lập - Tự do - Hạnh phúc", headerItalicSmall);
             pMotto2.setAlignment(Element.ALIGN_RIGHT);
             rightHeader.addElement(pMotto1);
             rightHeader.addElement(pMotto2);
@@ -84,7 +145,7 @@ public class MedicalRecordPdfService {
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
 
-            Paragraph codeSub = new Paragraph("Mã bệnh án: " + (record.getMedicalRecordCode() != null ? record.getMedicalRecordCode() : record.getId()) + " | Chuyên khoa: " + record.getRecordType(), subTitleFont);
+            Paragraph codeSub = new Paragraph("Mã bệnh án: " + (record.getMedicalRecordCode() != null ? record.getMedicalRecordCode() : record.getId()) + " | Chuyên khoa: " + formatRecordType(record.getRecordType()), subTitleFont);
             codeSub.setAlignment(Element.ALIGN_CENTER);
             document.add(codeSub);
             document.add(new Paragraph(" ", textFont));
@@ -111,13 +172,13 @@ public class MedicalRecordPdfService {
 
             var p = record.getProfile();
             addInfoRow(adminTable, "Họ và tên:", p != null ? p.getFullName() : "N/A", "Mã y tế (Mã YT):", record.getPatientMedicalCode() != null ? record.getPatientMedicalCode() : "N/A", boldTextFont, textFont);
-            addInfoRow(adminTable, "Ngày sinh:", (p != null && p.getDateOfBirth() != null) ? p.getDateOfBirth().format(DAY_ONLY_FMT) : "N/A", "Giới tính:", (p != null && p.getGender() != null) ? p.getGender().name() : "N/A", boldTextFont, textFont);
+            addInfoRow(adminTable, "Ngày sinh:", (p != null && p.getDateOfBirth() != null) ? p.getDateOfBirth().format(DAY_ONLY_FMT) : "N/A", "Giới tính:", (p != null && p.getGender() != null) ? formatGender(p.getGender()) : "N/A", boldTextFont, textFont);
             addInfoRow(adminTable, "Số CCCD / CMND:", (p != null && p.getCccd() != null) ? p.getCccd() : "N/A", "Thẻ BHYT:", (p != null && p.getBhytNumber() != null) ? p.getBhytNumber() : "N/A", boldTextFont, textFont);
             addInfoRow(adminTable, "Nhóm máu:", (p != null && p.getBloodType() != null) ? p.getBloodType() : "Chưa rõ", "Điện thoại liên hệ:", (p != null && p.getEmergencyContactPhone() != null) ? p.getEmergencyContactPhone() : "N/A", boldTextFont, textFont);
-            addInfoRow(adminTable, "Địa chỉ cư trú:", (p != null && p.getAddressDetail() != null) ? p.getAddressDetail() : "N/A", "Đối tượng BHYT:", (p != null && p.getInsuranceType() != null) ? p.getInsuranceType().name() : "BHYT", boldTextFont, textFont);
+            addInfoRow(adminTable, "Địa chỉ cư trú:", (p != null && p.getAddressDetail() != null) ? p.getAddressDetail() : "N/A", "Đối tượng BHYT:", (p != null && p.getInsuranceType() != null) ? formatInsuranceType(p.getInsuranceType()) : "Bảo hiểm y tế", boldTextFont, textFont);
             document.add(adminTable);
 
-            // II. QUÁ TRÌNH NHẬP VIỆN & ĐIỀU TRỊ
+            // II. QUÁ TRÌNH NHẬP VIỆN & RA VIỆN
             Paragraph sec2 = new Paragraph("II. QUÁ TRÌNH NHẬP VIỆN & RA VIỆN", sectionFont);
             document.add(sec2);
 
@@ -130,9 +191,9 @@ public class MedicalRecordPdfService {
             String outTime = record.getDischargeDateTime() != null ? record.getDischargeDateTime().format(DATE_FMT) : "Đang điều trị";
             addInfoRow(clinicalTable, "Thời điểm vào viện:", inTime, "Thời điểm ra viện:", outTime, boldTextFont, textFont);
             addInfoRow(clinicalTable, "Tổng số ngày điều trị:", (record.getTotalTreatmentDays() != null ? record.getTotalTreatmentDays() + " ngày" : "Đang tính"), "Giường điều trị:", record.getBedNumber() != null ? record.getBedNumber() : "N/A", boldTextFont, textFont);
-            addInfoRow(clinicalTable, "Lý do vào viện:", record.getChiefComplaint() != null ? record.getChiefComplaint() : "N/A", "Cổng tiếp nhận:", record.getAdmissionGate() != null ? record.getAdmissionGate().name() : "N/A", boldTextFont, textFont);
+            addInfoRow(clinicalTable, "Lý do vào viện:", record.getChiefComplaint() != null ? record.getChiefComplaint() : "N/A", "Cổng tiếp nhận:", formatAdmissionGate(record.getAdmissionGate()), boldTextFont, textFont);
             addInfoRow(clinicalTable, "Chẩn đoán ban đầu:", record.getAdmissionDiagnosis() != null ? record.getAdmissionDiagnosis() : "N/A", "Mã ICD-10 ra viện:", record.getPrimaryIcd10() != null ? record.getPrimaryIcd10() : "N/A", boldTextFont, textFont);
-            addInfoRow(clinicalTable, "Chẩn đoán xác định:", record.getPrimaryDiagnosis() != null ? record.getPrimaryDiagnosis() : "N/A", "Kết quả điều trị:", record.getDischargeType() != null ? record.getDischargeType().name() : "N/A", boldTextFont, textFont);
+            addInfoRow(clinicalTable, "Chẩn đoán xác định:", record.getPrimaryDiagnosis() != null ? record.getPrimaryDiagnosis() : "N/A", "Kết quả điều trị:", formatDischargeType(record.getDischargeType()), boldTextFont, textFont);
             document.add(clinicalTable);
 
             // III. DẤU HIỆU SINH TỒN (SINH HIỆU LÂM SÀNG)
@@ -219,7 +280,7 @@ public class MedicalRecordPdfService {
 
             PdfPCell signLeft = new PdfPCell();
             signLeft.setBorder(Rectangle.NO_BORDER);
-            signLeft.addElement(new Paragraph("NGƯỜI LẬP BỆNH ÁN", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+            signLeft.addElement(new Paragraph("NGƯỜI LẬP BỆNH ÁN", headerBoldFont));
             signLeft.addElement(new Paragraph("(Ký và ghi rõ họ tên)", smallFont));
             signTable.addCell(signLeft);
 
@@ -228,7 +289,7 @@ public class MedicalRecordPdfService {
             signRight.setHorizontalAlignment(Element.ALIGN_RIGHT);
             Paragraph dateP = new Paragraph("Ngày xuất phiếu: " + java.time.LocalDate.now().format(DAY_ONLY_FMT), smallFont);
             dateP.setAlignment(Element.ALIGN_RIGHT);
-            Paragraph docP = new Paragraph("BÁC SĨ ĐIỀU TRỊ TRƯỞNG KHOA", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10));
+            Paragraph docP = new Paragraph("BÁC SĨ ĐIỀU TRỊ TRƯỞNG KHOA", headerBoldFont);
             docP.setAlignment(Element.ALIGN_RIGHT);
             Paragraph signP = new Paragraph("(Ký tên, đóng dấu xác nhận)", smallFont);
             signP.setAlignment(Element.ALIGN_RIGHT);
@@ -282,5 +343,56 @@ public class MedicalRecordPdfService {
         cell.setPadding(6f);
         cell.setBorderColor(new Color(200, 215, 230));
         table.addCell(cell);
+    }
+
+    private String formatGender(Gender gender) {
+        if (gender == null) return "Chưa rõ";
+        return switch (gender) {
+            case MALE -> "Nam";
+            case FEMALE -> "Nữ";
+            case OTHER -> "Khác";
+        };
+    }
+
+    private String formatRecordType(RecordType type) {
+        if (type == null) return "N/A";
+        return switch (type) {
+            case INTERNAL -> "Nội khoa";
+            case SURGICAL -> "Ngoại khoa";
+            case PEDIATRIC -> "Nhi khoa";
+            case OBSTETRIC -> "Sản khoa";
+            case GENERAL -> "Khám bệnh chung";
+        };
+    }
+
+    private String formatAdmissionGate(AdmissionGate gate) {
+        if (gate == null) return "N/A";
+        return switch (gate) {
+            case EMERGENCY -> "Cấp cứu";
+            case EXAM_DEPT -> "Khoa Khám Bệnh";
+            case TREATMENT_DEPT -> "Khoa Điều Trị";
+        };
+    }
+
+    private String formatDischargeType(DischargeType dischargeType) {
+        if (dischargeType == null) return "Đang điều trị";
+        return switch (dischargeType) {
+            case RECOVERED -> "Ra viện (Khỏi / Đỡ)";
+            case DISCHARGE_REQUEST -> "Xin về";
+            case ABSCONDED -> "Bỏ về";
+            case TERMINAL_DISCHARGE -> "Đưa về (Tiên lượng nặng)";
+            case TRANSFERRED -> "Chuyển viện";
+            case DECEASED -> "Tử vong";
+        };
+    }
+
+    private String formatInsuranceType(InsuranceType type) {
+        if (type == null) return "Bảo hiểm y tế";
+        return switch (type) {
+            case BHYT -> "Bảo hiểm y tế (BHYT)";
+            case FEE -> "Thu phí / Tự túc";
+            case EXEMPT -> "Miễn phí viện phí";
+            case OTHER -> "Khác";
+        };
     }
 }

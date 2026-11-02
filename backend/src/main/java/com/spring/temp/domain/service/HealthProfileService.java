@@ -20,10 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.spring.temp.domain.model.enums.Gender;
 import com.spring.temp.domain.model.enums.RelationshipType;
+import com.spring.temp.domain.model.enums.ShareStatus;
 
 import java.security.Principal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,6 +41,8 @@ public class HealthProfileService {
     private final ChronicDiseaseRepository chronicDiseaseRepository;
     private final FamilyMedicalHistoryRepository familyHistoryRepository;
     private final UserRepository userRepository;
+    private final MedicalAppointmentRepository appointmentRepository;
+    private final ProfileShareRepository profileShareRepository;
     private final HealthProfileMapper mapper;
 
     // ==========================================
@@ -57,15 +64,60 @@ public class HealthProfileService {
     @Transactional
     public PageResponse<HealthProfileResponse> getMyProfiles(Principal connectedUser, Pageable pageable) {
         User user = getAuthenticatedUser(connectedUser);
-        Page<HealthProfile> page = healthProfileRepository.findByUserIdAndDeletedFalse(user.getId(), pageable);
+        Page<HealthProfile> page;
+        if (isAdmin(user)) {
+            page = healthProfileRepository.findByDeletedFalse(pageable);
+        } else if (isDoctor(user)) {
+            List<Long> assignedIds = getDoctorAssignedProfileIds(user);
+            if (assignedIds.isEmpty()) {
+                page = Page.empty(pageable);
+            } else {
+                page = healthProfileRepository.findByIdInAndDeletedFalse(assignedIds, pageable);
+            }
+        } else {
+            page = healthProfileRepository.findByUserIdAndDeletedFalse(user.getId(), pageable);
+        }
         return PageResponse.of(page.map(mapper::toResponse));
     }
 
     @Transactional
     public List<HealthProfileResponse> getMyProfilesList(Principal connectedUser) {
         User user = getAuthenticatedUser(connectedUser);
-        List<HealthProfile> profiles = healthProfileRepository.findByUserIdAndDeletedFalse(user.getId());
+        List<HealthProfile> profiles;
+        if (isAdmin(user)) {
+            profiles = healthProfileRepository.findByDeletedFalse();
+        } else if (isDoctor(user)) {
+            List<Long> assignedIds = getDoctorAssignedProfileIds(user);
+            if (assignedIds.isEmpty()) {
+                profiles = Collections.emptyList();
+            } else {
+                profiles = healthProfileRepository.findByIdInAndDeletedFalse(assignedIds);
+            }
+        } else {
+            profiles = healthProfileRepository.findByUserIdAndDeletedFalse(user.getId());
+        }
         return profiles.stream().map(mapper::toResponse).collect(Collectors.toList());
+    }
+
+    public List<Long> getDoctorAssignedProfileIds(User doctor) {
+        String docFullName = ((doctor.getFirstName() != null ? doctor.getFirstName() : "") + " " +
+                (doctor.getLastName() != null ? doctor.getLastName() : "")).trim();
+        List<MedicalAppointment> appointments = appointmentRepository.findByDoctorIdOrDoctorName(
+                doctor.getId(), docFullName.isEmpty() ? "___UNKNOWN___" : docFullName);
+        List<Long> profileIdsFromAppointments = appointments.stream()
+                .filter(a -> a.getProfile() != null)
+                .map(a -> a.getProfile().getId())
+                .collect(Collectors.toList());
+
+        List<ProfileShare> shares = profileShareRepository.findByDoctorUserId(doctor.getId());
+        List<Long> profileIdsFromShares = shares.stream()
+                .filter(s -> s.getStatus() == ShareStatus.ACTIVE && s.getProfile() != null)
+                .map(s -> s.getProfile().getId())
+                .collect(Collectors.toList());
+
+        Set<Long> allAssigned = new HashSet<>(profileIdsFromAppointments);
+        allAssigned.addAll(profileIdsFromShares);
+        return new ArrayList<>(allAssigned);
     }
 
     private HealthProfile initSelfProfileForUser(User user) {
@@ -220,14 +272,36 @@ public class HealthProfileService {
         HealthProfile profile = healthProfileRepository.findByIdAndDeletedFalse(profileId)
                 .orElseThrow(() -> new SomethingWentWrongException("Không tìm thấy hồ sơ sức khỏe id=" + profileId));
 
-        boolean isAdmin = user.getRoles().stream().anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
-        if (!profile.getUser().getId().equals(user.getId()) && !isAdmin) {
+        if (isAdmin(user)) {
+            return profile;
+        }
+
+        if (isDoctor(user)) {
+            List<Long> assignedIds = getDoctorAssignedProfileIds(user);
+            if (!assignedIds.contains(profileId)) {
+                log.warn("DOCTOR ACCESS DENIED: Doctor {} tried accessing unassigned profile {}", user.getEmail(), profileId);
+                throw new AccessDeniedException("Bác sĩ không phụ trách bệnh nhân này hoặc chưa có lịch hẹn tiếp nhận!");
+            }
+            return profile;
+        }
+
+        if (!profile.getUser().getId().equals(user.getId())) {
             log.warn("IDOR ATTEMPT: User {} tried accessing profile {} owned by user {}", 
                     user.getEmail(), profileId, profile.getUser().getId());
             throw new AccessDeniedException("Bạn không có quyền truy cập vào hồ sơ sức khỏe này!");
         }
 
         return profile;
+    }
+
+    public boolean isAdmin(User user) {
+        if (user.getRoles() == null) return false;
+        return user.getRoles().stream().anyMatch(r -> "ROLE_ADMIN".equals(r.getName()));
+    }
+
+    public boolean isDoctor(User user) {
+        if (user.getRoles() == null) return false;
+        return user.getRoles().stream().anyMatch(r -> "ROLE_DOCTOR".equals(r.getName()));
     }
 
     private User getAuthenticatedUser(Principal connectedUser) {

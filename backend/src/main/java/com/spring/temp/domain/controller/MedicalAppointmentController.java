@@ -84,4 +84,13 @@ public class MedicalAppointmentController {
         appointmentService.deleteAppointment(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa lịch hẹn thành công"));
     }
+
+    @PostMapping("/{id}/doctor-action")
+    @Operation(summary = "Bác sĩ xử lý lịch hẹn (Đồng ý / Hẹn lại / Từ chối)", description = "Bác sĩ đồng ý xếp lịch, đề xuất ngày giờ mới hoặc từ chối lịch hẹn")
+    public ResponseEntity<ApiResponse<MedicalAppointmentResponse>> handleDoctorAction(
+            @PathVariable Long id,
+            @RequestBody @Valid com.spring.temp.domain.dto.appointment.DoctorAppointmentActionRequest request) {
+        MedicalAppointmentResponse response = appointmentService.handleDoctorAction(id, request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Xử lý lịch hẹn khám thành công"));
+    }
 }

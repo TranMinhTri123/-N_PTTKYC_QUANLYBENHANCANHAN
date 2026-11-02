@@ -16,27 +16,34 @@ import {
   InputNumber,
   AutoComplete,
   Divider,
+  Modal,
+  Spin,
+  Segmented,
+  Tooltip,
+  Descriptions,
 } from 'antd';
 import {
   PlusOutlined,
   DeleteOutlined,
   SaveOutlined,
-  AlertOutlined,
-  MedicineBoxOutlined,
   ArrowLeftOutlined,
-  SearchOutlined,
+  InfoCircleOutlined,
+  SafetyCertificateOutlined,
+  MedicineBoxOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import prescriptionService from '../../services/prescriptionService';
 import profileService from '../../services/profileService';
 import catalogService from '../../services/catalogService';
 import medicalRecordService from '../../services/medicalRecordService';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 export const DoctorPrescriptionPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState([]);
@@ -59,52 +66,23 @@ export const DoctorPrescriptionPage = () => {
     },
   ]);
 
+  // Nguồn tra cứu thuốc: ALL | OPEN_FDA | NIH_RXTERMS | NATIONAL
+  const [drugSource, setDrugSource] = useState('ALL');
+
   // Cảnh báo sốc phản vệ dị ứng chéo
   const [allergyAlerts, setAllergyAlerts] = useState([]);
 
   // Tra cứu thuốc autocomplete
   const [medicineOptions, setMedicineOptions] = useState([]);
 
-  useEffect(() => {
-    // Tải danh sách hồ sơ
-    const loadInit = async () => {
-      try {
-        const [profRes, recRes] = await Promise.allSettled([
-          profileService.getProfiles(),
-          medicalRecordService.getRecords({ page: 0, size: 50 }),
-        ]);
+  // Tra cứu bệnh WHO ICD-11 & ICD-10
+  const [diseaseOptions, setDiseaseOptions] = useState([]);
+  const [diagnosisValue, setDiagnosisValue] = useState('');
 
-        if (profRes.status === 'fulfilled') {
-          const list = Array.isArray(profRes.value?.data) ? profRes.value.data : (profRes.value?.data?.content || []);
-          setProfiles(list);
-          if (list.length > 0) {
-            handleSelectPatient(list[0].id, list);
-          }
-        }
-        if (recRes.status === 'fulfilled') {
-          const recList = Array.isArray(recRes.value?.data) ? recRes.value.data : (recRes.value?.data?.content || []);
-          setRecords(recList);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    loadInit();
-  }, []);
-
-  // Khi chọn bệnh nhân -> tải chi tiết dị ứng để kiểm tra chéo
-  const handleSelectPatient = async (profileId, profList = profiles) => {
-    const prof = profList.find((p) => p.id === profileId);
-    setSelectedProfile(prof);
-    try {
-      const res = await profileService.getProfile(profileId);
-      const allergies = res?.data?.allergies || [];
-      setPatientAllergies(allergies);
-      checkCrossAllergies(prescriptionItems, allergies);
-    } catch {
-      setPatientAllergies([]);
-    }
-  };
+  // Modal Dược lý & An toàn FDA
+  const [fdaModalVisible, setFdaModalVisible] = useState(false);
+  const [fdaModalLoading, setFdaModalLoading] = useState(false);
+  const [fdaDrugData, setFdaDrugData] = useState(null);
 
   // Thuật toán kiểm tra dị ứng chéo (Cross-Allergy Detector)
   const checkCrossAllergies = (items, allergies = patientAllergies) => {
@@ -114,7 +92,7 @@ export const DoctorPrescriptionPage = () => {
       return;
     }
 
-    const allergyNames = allergies.map((a) => (a.allergen || '').toLowerCase());
+    const allergyNames = allergies.map((a) => (a.allergenName || a.allergen || '').toLowerCase());
 
     items.forEach((item) => {
       const medName = (item.medicineName || '').toLowerCase();
@@ -138,12 +116,12 @@ export const DoctorPrescriptionPage = () => {
 
       // Kiểm tra trùng tên chất dị ứng trực tiếp
       allergies.forEach((a) => {
-        const aName = (a.allergen || '').toLowerCase();
+        const aName = (a.allergenName || a.allergen || '').toLowerCase();
         if (aName && (medName.includes(aName) || activeName.includes(aName))) {
           warnings.push({
             medicine: item.medicineName,
             severity: a.severity || 'SEVERE',
-            message: `CẢNH BÁO DỊ ỨNG: Bệnh nhân dị ứng với "${a.allergen}" (${a.reaction || 'Phản vệ'}). Không nên chỉ định ${item.medicineName}!`,
+            message: `CẢNH BÁO DỊ ỨNG: Bệnh nhân dị ứng với "${a.allergenName || a.allergen}" (${a.reactionSymptoms || a.reaction || 'Phản vệ'}). Không nên chỉ định ${item.medicineName}!`,
           });
         }
       });
@@ -152,26 +130,144 @@ export const DoctorPrescriptionPage = () => {
     setAllergyAlerts(warnings);
   };
 
-  // Tra cứu thuốc
-  const handleSearchMedicine = async (query) => {
-    if (!query || query.length < 2) return;
+  // Khi chọn bệnh nhân -> tải chi tiết dị ứng để kiểm tra chéo
+  const handleSelectPatient = async (profileId, profList = profiles) => {
+    const prof = profList.find((p) => p.id === profileId);
+    setSelectedProfile(prof);
     try {
-      const res = await catalogService.searchMedicines(query);
+      const res = await profileService.getAllergies(profileId);
+      const allergies = Array.isArray(res?.data) ? res.data : [];
+      setPatientAllergies(allergies);
+      checkCrossAllergies(prescriptionItems, allergies);
+    } catch {
+      setPatientAllergies([]);
+    }
+  };
+
+  useEffect(() => {
+    // Tải danh sách hồ sơ
+    const loadInit = async () => {
+      try {
+        const [profRes, recRes] = await Promise.allSettled([
+          profileService.getProfiles(),
+          medicalRecordService.getRecords({ page: 0, size: 50 }),
+        ]);
+
+        if (profRes.status === 'fulfilled') {
+          const list = Array.isArray(profRes.value?.data) ? profRes.value.data : (profRes.value?.data?.content || []);
+          setProfiles(list);
+          const targetId = location.state?.profileId || (list.length > 0 ? list[0].id : null);
+          if (targetId) {
+            form.setFieldsValue({ profileId: targetId });
+            handleSelectPatient(targetId, list);
+          }
+        }
+        if (recRes.status === 'fulfilled') {
+          const recList = Array.isArray(recRes.value?.data) ? recRes.value.data : (recRes.value?.data?.content || []);
+          setRecords(recList);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadInit();
+  }, [location.state?.profileId]);
+
+  // Tra cứu thuốc thông minh từ các API (openFDA, NIH RxTerms, Bộ Y Tế)
+  const handleSearchMedicine = async (query) => {
+    if (!query || query.trim().length < 2) return;
+    try {
+      const res = await catalogService.searchExternalDrugs(query.trim(), drugSource);
       const list = res?.data || [];
       setMedicineOptions(
-        list.map((m) => ({
-          value: m.brandName || m.activeIngredient,
-          label: (
-            <div>
-              <strong>{m.brandName}</strong> ({m.activeIngredient})
-              <div style={{ fontSize: 11, color: '#64748b' }}>Hàm lượng: {m.strength || '-'} | ĐVT: {m.dosageForm || 'Viên'}</div>
-            </div>
-          ),
-          item: m,
-        }))
+        list.map((m) => {
+          let sourceBadge = <Tag color="blue">Bộ Y Tế</Tag>;
+          if (m.source === 'OPEN_FDA') sourceBadge = <Tag color="cyan">openFDA</Tag>;
+          if (m.source === 'NIH_RXTERMS') sourceBadge = <Tag color="purple">NIH RxTerms</Tag>;
+
+          return {
+            value: m.brandName || m.name || m.genericName,
+            label: (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong>{m.brandName || m.name}</strong>
+                  {m.genericName && m.genericName !== m.brandName && (
+                    <span style={{ color: '#475569', marginLeft: 6 }}>({m.genericName})</span>
+                  )}
+                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                    Dạng: {m.dosageForm || 'Viên'} | Hàm lượng: {m.strength || '-'} | {m.manufacturer || ''}
+                  </div>
+                </div>
+                <div>{sourceBadge}</div>
+              </div>
+            ),
+            item: m,
+          };
+        })
       );
     } catch {
       setMedicineOptions([]);
+    }
+  };
+
+  // Tra cứu bệnh & mã chẩn đoán từ WHO ICD-11 & ICD-10
+  const handleSearchDisease = async (query) => {
+    setDiagnosisValue(query);
+    if (!query || query.trim().length < 2) return;
+    try {
+      const res = await catalogService.searchExternalDiseases(query.trim());
+      const list = res?.data || [];
+      setDiseaseOptions(
+        list.map((d) => {
+          const icd11Tag = d.icd11Code ? <Tag color="geekblue">ICD-11: {d.icd11Code}</Tag> : null;
+          const icd10Tag = d.icd10Code ? <Tag color="green">ICD-10: {d.icd10Code}</Tag> : null;
+
+          const displayLabel = (
+            <div>
+              <Space orientation="horizontal" size={4}>
+                {icd11Tag}
+                {icd10Tag}
+                <strong>{d.diseaseNameVi || d.diseaseNameEn}</strong>
+              </Space>
+              {d.diseaseNameEn && d.diseaseNameVi && d.diseaseNameEn !== d.diseaseNameVi && (
+                <div style={{ fontSize: 12, color: '#475569' }}>Tiếng Anh: {d.diseaseNameEn}</div>
+              )}
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>Chương: {d.chapter || 'Chẩn đoán chung'}</div>
+            </div>
+          );
+
+          const insertValue = d.icd11Code
+            ? `[ICD-11: ${d.icd11Code}${d.icd10Code ? ` / ICD-10: ${d.icd10Code}` : ''}] ${d.diseaseNameVi || d.diseaseNameEn}`
+            : `[ICD-10: ${d.icd10Code}] ${d.diseaseNameVi || d.diseaseNameEn}`;
+
+          return {
+            value: insertValue,
+            label: displayLabel,
+            item: d,
+          };
+        })
+      );
+    } catch {
+      setDiseaseOptions([]);
+    }
+  };
+
+  // Mở Modal xem chi tiết an toàn dược lý openFDA
+  const handleOpenFdaModal = async (drugName) => {
+    if (!drugName) return;
+    setFdaModalLoading(true);
+    setFdaModalVisible(true);
+    setFdaDrugData(null);
+    try {
+      const res = await catalogService.getDrugSafetyDetails(drugName);
+      setFdaDrugData(res?.data || null);
+    } catch (err) {
+      notification.warning({
+        message: 'Thông báo',
+        description: 'Không thể tải nhãn thuốc FDA cho tên này. Vui lòng thử từ khóa tên hoạt chất.',
+      });
+    } finally {
+      setFdaModalLoading(false);
     }
   };
 
@@ -186,7 +282,7 @@ export const DoctorPrescriptionPage = () => {
       dosage: '1 viên / lần',
       frequency: '2 lần / ngày',
       durationDays: 5,
-      instructions: 'Uống sau ăn',
+      instructions: 'Uống sau ăn no',
     };
     const nextList = [...prescriptionItems, newItem];
     setPrescriptionItems(nextList);
@@ -225,12 +321,12 @@ export const DoctorPrescriptionPage = () => {
     try {
       const payload = {
         medicalRecordId: values.medicalRecordId || (records.length > 0 ? records[0].id : null),
-        diagnosis: values.diagnosis || 'Theo dõi điều trị ngoại trú',
+        diagnosis: diagnosisValue || values.diagnosis || 'Theo dõi điều trị ngoại trú',
         doctorAdvice: values.doctorAdvice || 'Uống thuốc đúng giờ, kiêng rượu bia, tái khám khi có dấu hiệu bất thường',
         items: prescriptionItems.map((i) => ({
           medicineName: i.medicineName,
           activeIngredient: i.activeIngredient,
-          strength: 'Chuẩn',
+          strength: i.strength || 'Chuẩn',
           unit: i.unit || 'Viên',
           quantity: i.quantity || 1,
           dosage: i.dosage || '1 viên / lần',
@@ -266,8 +362,11 @@ export const DoctorPrescriptionPage = () => {
           </Button>
           <div>
             <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
-              Kê Đơn Thuốc Điện Tử
+              Kê Đơn Thuốc Điện Tử & Dược Thư Quốc Tế
             </Title>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              Tích hợp tra cứu openFDA Hoa Kỳ, NIH RxTerms & Danh mục bệnh WHO ICD-11
+            </Text>
           </div>
         </Space>
       </div>
@@ -346,14 +445,33 @@ export const DoctorPrescriptionPage = () => {
 
           <Divider style={{ margin: '16px 0' }} />
 
-          {/* BẢNG KÊ THUỐC ĐỘNG */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Title level={5} style={{ margin: 0, color: '#0f766e' }}>
-              Danh Mục Thuốc Kê Trong Đơn
-            </Title>
-            <Button type="dashed" icon={<PlusOutlined />} onClick={handleAddMedicineRow}>
-              Thêm Thuốc Mới
-            </Button>
+          {/* THANH CHỌN NGUỒN TRA CỨU THUỐC MỞ RỘNG */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+            <div>
+              <Title level={5} style={{ margin: 0, color: '#0f766e', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <MedicineBoxOutlined /> Danh Mục Thuốc Kê Trong Đơn
+              </Title>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Gõ tên thuốc để tìm kiếm tự động từ FDA Hoa Kỳ, NIH hoặc Dược thư Bộ Y Tế
+              </Text>
+            </div>
+
+            <Space>
+              <Text strong style={{ fontSize: 12, color: '#475569' }}>Nguồn dữ liệu:</Text>
+              <Segmented
+                value={drugSource}
+                onChange={setDrugSource}
+                options={[
+                  { label: '🌐 Tất cả nguồn', value: 'ALL' },
+                  { label: '🇺🇸 openFDA', value: 'OPEN_FDA' },
+                  { label: '🔬 NIH RxTerms', value: 'NIH_RXTERMS' },
+                  { label: '🇻🇳 Bộ Y Tế', value: 'NATIONAL' },
+                ]}
+              />
+              <Button type="dashed" icon={<PlusOutlined />} onClick={handleAddMedicineRow}>
+                Thêm Thuốc Mới
+              </Button>
+            </Space>
           </div>
 
           <Table
@@ -366,29 +484,50 @@ export const DoctorPrescriptionPage = () => {
                 title: 'Tên Thuốc (Biệt Dược / Hoạt Chất)',
                 dataIndex: 'medicineName',
                 key: 'medicineName',
-                width: '30%',
+                width: '32%',
                 render: (_, record) => (
-                  <AutoComplete
-                    options={medicineOptions}
-                    onSearch={handleSearchMedicine}
-                    value={record.medicineName}
-                    onChange={(val) => handleItemChange(record.id, 'medicineName', val)}
-                    onSelect={(val, option) => {
-                      handleItemChange(record.id, 'medicineName', val);
-                      if (option.item?.activeIngredient) {
-                        handleItemChange(record.id, 'activeIngredient', option.item.activeIngredient);
-                      }
-                    }}
-                    placeholder="Gõ tên thuốc hoặc hoạt chất..."
-                    style={{ width: '100%' }}
-                  />
+                  <div>
+                    <AutoComplete
+                      options={medicineOptions}
+                      onSearch={handleSearchMedicine}
+                      value={record.medicineName}
+                      onChange={(val) => handleItemChange(record.id, 'medicineName', val)}
+                      onSelect={(val, option) => {
+                        handleItemChange(record.id, 'medicineName', val);
+                        if (option.item?.activeIngredient || option.item?.genericName) {
+                          handleItemChange(record.id, 'activeIngredient', option.item.activeIngredient || option.item.genericName);
+                        }
+                        if (option.item?.dosageForm) {
+                          handleItemChange(record.id, 'unit', option.item.dosageForm.includes('Pill') || option.item.dosageForm.includes('Tab') ? 'Viên' : option.item.dosageForm);
+                        }
+                        if (option.item?.strength) {
+                          handleItemChange(record.id, 'strength', option.item.strength);
+                        }
+                      }}
+                      placeholder="Gõ tên thuốc hoặc hoạt chất (vd: Paracetamol, Amoxicillin, Amlodipine...)"
+                      style={{ width: '100%' }}
+                    />
+                    {record.medicineName && record.medicineName.length >= 2 && (
+                      <div style={{ marginTop: 4 }}>
+                        <Button
+                          type="link"
+                          size="small"
+                          icon={<SafetyCertificateOutlined />}
+                          onClick={() => handleOpenFdaModal(record.activeIngredient || record.medicineName)}
+                          style={{ padding: 0, fontSize: 12, color: '#0284c7' }}
+                        >
+                          Tra cứu Dược lý & An toàn FDA
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 ),
               },
               {
                 title: 'Số Lượng',
                 dataIndex: 'quantity',
                 key: 'quantity',
-                width: 100,
+                width: 90,
                 render: (_, record) => (
                   <InputNumber
                     min={1}
@@ -406,12 +545,13 @@ export const DoctorPrescriptionPage = () => {
                 render: (_, record) => (
                   <Input
                     value={record.unit}
+                    placeholder="Viên/Gói/Chai"
                     onChange={(e) => handleItemChange(record.id, 'unit', e.target.value)}
                   />
                 ),
               },
               {
-                title: 'Liều Dùng & Cách Dùng',
+                title: 'Liều Dùng & Hướng Dẫn',
                 dataIndex: 'instructions',
                 key: 'instructions',
                 render: (_, record) => (
@@ -423,17 +563,30 @@ export const DoctorPrescriptionPage = () => {
                 ),
               },
               {
-                title: 'Xóa',
-                key: 'delete',
-                width: 60,
+                title: 'Thao tác',
+                key: 'actions',
+                width: 90,
+                align: 'center',
                 render: (_, record) => (
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleRemoveMedicineRow(record.id)}
-                    disabled={prescriptionItems.length === 1}
-                  />
+                  <Space size="small">
+                    <Tooltip title="Xem thông tin an toàn & tương tác thuốc từ FDA">
+                      <Button
+                        type="text"
+                        icon={<InfoCircleOutlined style={{ color: '#0284c7' }} />}
+                        onClick={() => handleOpenFdaModal(record.activeIngredient || record.medicineName)}
+                        disabled={!record.medicineName}
+                      />
+                    </Tooltip>
+                    <Tooltip title="Xóa dòng thuốc này">
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemoveMedicineRow(record.id)}
+                        disabled={prescriptionItems.length === 1}
+                      />
+                    </Tooltip>
+                  </Space>
                 ),
               },
             ]}
@@ -441,15 +594,35 @@ export const DoctorPrescriptionPage = () => {
 
           <Divider style={{ margin: '20px 0' }} />
 
+          {/* CHẨN ĐOÁN KÈM THEO ĐƠN VỚI TÍCH HỢP WHO ICD-11 & ICD-10 */}
           <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item name="diagnosis" label={<span style={{ fontWeight: 600 }}>Chẩn Đoán Kèm Theo Đơn</span>}>
-                <Input placeholder="Ví dụ: Tăng huyết áp độ 2, Rối loạn lipid máu" size="large" />
+            <Col xs={24} md={14}>
+              <Form.Item
+                label={
+                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <BookOutlined style={{ color: '#0f766e' }} />
+                    Chẩn Đoán Bệnh Kèm Theo Đơn (Tra cứu WHO ICD-11 & ICD-10)
+                  </span>
+                }
+              >
+                <AutoComplete
+                  options={diseaseOptions}
+                  onSearch={handleSearchDisease}
+                  value={diagnosisValue}
+                  onChange={setDiagnosisValue}
+                  placeholder="Gõ tên bệnh hoặc mã ICD (vd: Tăng huyết áp, tiểu đường, BA00, I10, hen, dạ dày...)"
+                  size="large"
+                  style={{ width: '100%' }}
+                />
+                <div style={{ marginTop: 4, fontSize: 12, color: '#64748b' }}>
+                  Gợi ý chuẩn: <Tag color="geekblue">ICD-11</Tag> & <Tag color="green">ICD-10</Tag> tự động điền mã bệnh chính xác vào đơn thuốc.
+                </div>
               </Form.Item>
             </Col>
-            <Col xs={24} md={12}>
+
+            <Col xs={24} md={10}>
               <Form.Item name="doctorAdvice" label={<span style={{ fontWeight: 600 }}>Lời Dặn Của Bác Sĩ</span>}>
-                <Input placeholder="Uống nhiều nước, hạn chế ăn mặn, tập thể dục nhẹ nhàng..." size="large" />
+                <Input placeholder="Uống nhiều nước, hạn chế ăn mặn, tái khám đúng hẹn..." size="large" />
               </Form.Item>
             </Col>
           </Row>
@@ -468,6 +641,133 @@ export const DoctorPrescriptionPage = () => {
           </Form.Item>
         </Form>
       </Card>
+
+      {/* MODAL TRA CỨU DƯỢC LÝ & AN TOÀN THUỐC OPENFDA */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 18, color: '#0369a1' }}>
+            <SafetyCertificateOutlined />
+            <span>Thông Tin Dược Lý & An Toàn Thuốc (openFDA)</span>
+          </div>
+        }
+        open={fdaModalVisible}
+        onCancel={() => setFdaModalVisible(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setFdaModalVisible(false)}>
+            Đóng
+          </Button>,
+        ]}
+        width={850}
+        destroyOnClose
+      >
+        {fdaModalLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin size="large" />
+            <div style={{ marginTop: 12, color: '#64748b' }}>Đang tra cứu dữ liệu từ FDA Hoa Kỳ...</div>
+          </div>
+        ) : fdaDrugData ? (
+          <div>
+            <Descriptions bordered column={2} size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="Tên Biệt Dược / Thuốc" span={1}>
+                <strong>{fdaDrugData.brandName || fdaDrugData.drugName}</strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Hoạt Chất Chính (Generic)" span={1}>
+                <Tag color="cyan">{fdaDrugData.genericName || fdaDrugData.drugName}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Đường Dùng (Route)" span={1}>
+                {fdaDrugData.route || 'Đường uống (Oral)'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nhà Sản Xuất / Cấp Phép" span={1}>
+                {fdaDrugData.manufacturer || 'US FDA Approved'}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider style={{ margin: '12px 0' }} />
+
+            <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 8 }}>
+              {/* CHỈ ĐỊNH ĐIỀU TRỊ */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ color: '#0369a1', fontSize: 14 }}>
+                  📋 Chỉ Định Điều Trị (Indications & Usage):
+                </Text>
+                <Paragraph style={{ marginTop: 4, background: '#f0f9ff', padding: 10, borderRadius: 6, fontSize: 13 }}>
+                  {fdaDrugData.indicationsAndUsage || 'Chỉ định theo phác đồ của bác sĩ chuyên khoa.'}
+                </Paragraph>
+              </div>
+
+              {/* HƯỚNG DẪN LIỀU LƯỢNG */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ color: '#15803d', fontSize: 14 }}>
+                  ⚖️ Hướng Dẫn Liều Dùng (Dosage & Administration):
+                </Text>
+                <Paragraph style={{ marginTop: 4, background: '#f0fdf4', padding: 10, borderRadius: 6, fontSize: 13 }}>
+                  {fdaDrugData.dosageAndAdministration || 'Dùng theo chỉ định của bác sĩ điều trị.'}
+                </Paragraph>
+              </div>
+
+              {/* TƯƠNG TÁC THUỐC */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ color: '#b45309', fontSize: 14 }}>
+                  ⚠️ Tương Tác Thuốc Cần Lưu Ý (Drug Interactions):
+                </Text>
+                <Paragraph style={{ marginTop: 4, background: '#fffbeb', padding: 10, borderRadius: 6, fontSize: 13 }}>
+                  {fdaDrugData.drugInteractions || 'Tham khảo kỹ bảng tương tác thuốc khi dùng đồng thời với các kháng sinh, thuốc hạ huyết áp hoặc thuốc ức chế enzym.'}
+                </Paragraph>
+              </div>
+
+              {/* CHỐNG CHỈ ĐỊNH */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ color: '#b91c1c', fontSize: 14 }}>
+                  🚫 Chống Chỉ Định (Contraindications):
+                </Text>
+                <Paragraph style={{ marginTop: 4, background: '#fef2f2', padding: 10, borderRadius: 6, fontSize: 13 }}>
+                  {fdaDrugData.contraindications || 'Chống chỉ định đối với bệnh nhân mẫn cảm hoặc dị ứng với các thành phần của thuốc.'}
+                </Paragraph>
+              </div>
+
+              {/* CẢNH BÁO & THẬN TRỌNG */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ color: '#c2410c', fontSize: 14 }}>
+                  🚨 Cảnh Báo & Thận Trọng (Warnings & Precautions):
+                </Text>
+                <Paragraph style={{ marginTop: 4, background: '#fff7ed', padding: 10, borderRadius: 6, fontSize: 13 }}>
+                  {fdaDrugData.warningsAndPrecautions || 'Kiểm tra chức năng gan thận đối với bệnh nhân dùng thuốc dài ngày.'}
+                </Paragraph>
+              </div>
+
+              {/* TÁC DỤNG PHỤ */}
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ color: '#475569', fontSize: 14 }}>
+                  🩺 Tác Dụng Phụ Có Thể Gặp (Adverse Reactions):
+                </Text>
+                <Paragraph style={{ marginTop: 4, background: '#f8fafc', padding: 10, borderRadius: 6, fontSize: 13 }}>
+                  {fdaDrugData.adverseReactions || 'Có thể gây rối loạn tiêu hóa nhẹ, buồn nôn, chóng mặt thoáng qua.'}
+                </Paragraph>
+              </div>
+
+              {/* THAI KỲ & BẢO QUẢN */}
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Text strong style={{ fontSize: 13 }}>Phụ nữ mang thai & cho con bú:</Text>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+                    {fdaDrugData.pregnancyWarning || 'Cân nhắc lợi ích và nguy cơ trước khi chỉ định.'}
+                  </div>
+                </Col>
+                <Col span={12}>
+                  <Text strong style={{ fontSize: 13 }}>Bảo quản:</Text>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+                    {fdaDrugData.storageAndHandling || 'Nơi khô mát, nhiệt độ dưới 30°C.'}
+                  </div>
+                </Col>
+              </Row>
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#64748b' }}>
+            Không tìm thấy thông tin chi tiết trên openFDA cho từ khóa này.
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

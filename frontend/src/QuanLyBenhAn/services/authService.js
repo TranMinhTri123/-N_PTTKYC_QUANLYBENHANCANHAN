@@ -11,9 +11,21 @@ export const authService = {
     return await axiosClient.post('/auth/register', userData);
   },
 
+  // Kích hoạt tài khoản qua Token email
+  activateAccount: async (token) => {
+    return await axiosClient.get('/auth/activate-account', {
+      params: { token },
+    });
+  },
+
   // Lấy thông tin tài khoản đang đăng nhập
   getMe: async () => {
     return await axiosClient.get('/auth/me');
+  },
+
+  // Cập nhật thông tin tài khoản
+  updateProfile: async (profileData) => {
+    return await axiosClient.put('/auth/profile', profileData);
   },
 
   // Đổi mật khẩu chủ động

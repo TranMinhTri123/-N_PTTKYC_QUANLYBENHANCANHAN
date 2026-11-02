@@ -73,6 +73,18 @@ export const DoctorPatientsPage = () => {
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}
+          locale={{
+            emptyText: (
+              <div style={{ padding: '32px 0', textAlign: 'center' }}>
+                <p style={{ color: '#64748b', fontSize: 14 }}>
+                  👨‍⚕️ Bác sĩ chưa có bệnh nhân nào đặt lịch hoặc được phân công tiếp nhận.
+                </p>
+                <p style={{ color: '#94a3b8', fontSize: 12 }}>
+                  Dữ liệu bệnh nhân chỉ hiển thị khi có lịch hẹn khám trực tiếp hoặc chia sẻ hồ sơ.
+                </p>
+              </div>
+            ),
+          }}
           columns={[
             {
               title: 'Mã BN',
@@ -108,12 +120,16 @@ export const DoctorPatientsPage = () => {
               title: 'Liên Hệ',
               dataIndex: 'phoneNumber',
               key: 'phoneNumber',
-              render: (phone) => (
-                <span>
-                  <PhoneOutlined style={{ marginRight: 4, color: '#64748b' }} />
-                  {phone ? formatPhoneNumber(phone) : '-'}
-                </span>
-              ),
+              render: (phone) => {
+                if (!phone) return <Text type="secondary">-</Text>;
+                const masked = phone.replace(/(\d{4})\d{3}(\d{3})/, '$1***$2');
+                return (
+                  <span>
+                    <PhoneOutlined style={{ marginRight: 4, color: '#64748b' }} />
+                    {masked}
+                  </span>
+                );
+              },
             },
             {
               title: 'Tình Trạng Theo Dõi',
@@ -129,7 +145,7 @@ export const DoctorPatientsPage = () => {
                     type="primary"
                     size="small"
                     icon={<FileAddOutlined />}
-                    onClick={() => navigate('/doctor/records/create')}
+                    onClick={() => navigate('/doctor/records/create', { state: { profileId: record.id } })}
                     style={{ background: '#0f766e', borderColor: '#0f766e' }}
                   >
                     Khám Bệnh
@@ -137,7 +153,7 @@ export const DoctorPatientsPage = () => {
                   <Button
                     size="small"
                     icon={<MedicineBoxOutlined />}
-                    onClick={() => navigate('/doctor/prescriptions/create')}
+                    onClick={() => navigate('/doctor/prescriptions/create', { state: { profileId: record.id } })}
                   >
                     Kê Đơn
                   </Button>

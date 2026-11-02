@@ -11,13 +11,16 @@ export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const navigate = useNavigate();
 
   // Bước 0: Gửi yêu cầu cấp mã OTP qua Email
   const handleRequestOtp = async (values) => {
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
     try {
       await authService.forgotPassword(values.email);
       setEmail(values.email);
@@ -29,10 +32,30 @@ export const ForgotPasswordPage = () => {
     }
   };
 
+  // Gửi lại mã OTP trực tiếp
+  const handleResendOtp = async () => {
+    if (!email) {
+      setCurrentStep(0);
+      return;
+    }
+    setResendLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await authService.forgotPassword(email);
+      setSuccessMsg(`Mã OTP mới đã được gửi đến ${email}. Vui lòng kiểm tra hộp thư.`);
+    } catch (err) {
+      setErrorMsg(err.message || 'Không thể gửi lại mã OTP. Vui lòng thử lại sau.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   // Bước 1: Xác thực mã OTP 6 số
   const handleVerifyOtp = async (values) => {
     setLoading(true);
     setErrorMsg('');
+    setSuccessMsg('');
     try {
       await authService.verifyResetCode(email, values.code);
       setResetCode(values.code);
@@ -88,6 +111,17 @@ export const ForgotPasswordPage = () => {
           closable
           style={{ marginBottom: 16 }}
           onClose={() => setErrorMsg('')}
+        />
+      )}
+
+      {successMsg && (
+        <Alert
+          message={successMsg}
+          type="success"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          onClose={() => setSuccessMsg('')}
         />
       )}
 
@@ -153,9 +187,26 @@ export const ForgotPasswordPage = () => {
             Xác Minh Mã OTP
           </Button>
 
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Button type="link" onClick={() => setCurrentStep(0)} style={{ fontSize: 13 }}>
-              Gửi lại mã hoặc đổi email
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 14 }}>
+            <Button
+              type="link"
+              onClick={handleResendOtp}
+              loading={resendLoading}
+              style={{ fontSize: 13, padding: 0, fontWeight: 500 }}
+            >
+              Gửi lại mã OTP
+            </Button>
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <Button
+              type="link"
+              onClick={() => {
+                setErrorMsg('');
+                setSuccessMsg('');
+                setCurrentStep(0);
+              }}
+              style={{ fontSize: 13, padding: 0, fontWeight: 500 }}
+            >
+              Đổi Gmail khác
             </Button>
           </div>
         </Form>

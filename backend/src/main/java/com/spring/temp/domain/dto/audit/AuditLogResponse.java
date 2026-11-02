@@ -15,9 +15,11 @@ public class AuditLogResponse {
     private Long userId;
     private String userEmail;
     private String userFullName;
+    private String username;
     private String action;
     private String entityName;
     private Long entityId;
     private String ipAddress;
+    private String details;
     private LocalDateTime createdAt;
 }

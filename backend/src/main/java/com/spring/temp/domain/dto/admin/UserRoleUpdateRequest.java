@@ -15,4 +15,6 @@ public class UserRoleUpdateRequest {
     private String roleName;
 
     private String department; // Khoa công tác nếu cấp quyền ROLE_DOCTOR
+    private String hospitalName; // Bệnh viện công tác
+    private String specialtyCode; // Chuyên khoa
 }

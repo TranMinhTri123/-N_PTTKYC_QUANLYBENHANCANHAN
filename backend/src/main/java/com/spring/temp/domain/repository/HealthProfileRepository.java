@@ -14,7 +14,15 @@ public interface HealthProfileRepository extends JpaRepository<HealthProfile, Lo
 
     Page<HealthProfile> findByUserIdAndDeletedFalse(Long userId, Pageable pageable);
 
+    List<HealthProfile> findByDeletedFalse();
+
+    Page<HealthProfile> findByDeletedFalse(Pageable pageable);
+
     Optional<HealthProfile> findByIdAndDeletedFalse(Long id);
+
+    Page<HealthProfile> findByIdInAndDeletedFalse(List<Long> ids, Pageable pageable);
+
+    List<HealthProfile> findByIdInAndDeletedFalse(List<Long> ids);
 
     boolean existsByIdAndUserId(Long id, Long userId);
 }

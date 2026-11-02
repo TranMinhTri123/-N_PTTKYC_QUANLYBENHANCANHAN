@@ -39,7 +39,17 @@ public class AuditLog {
     @Column(name = "ip_address", length = 50)
     private String ipAddress;
 
+    @Column(name = "details", length = 500)
+    private String details;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+    }
 }

@@ -44,8 +44,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     const res = await authService.login(credentials);
     if (res && res.data && res.data.token) {
-      const { token: jwtToken, refreshToken, userId, email, fullName, roles, department } = res.data;
-      const userData = { id: userId, email, fullName, roles, department };
+      const { token: jwtToken, refreshToken } = res.data;
+      const userData = {
+        ...res.data,
+        id: res.data.userId || res.data.id,
+      };
 
       localStorage.setItem('token', jwtToken);
       if (refreshToken) {

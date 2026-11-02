@@ -20,6 +20,7 @@ public class HealthProfileResponse {
     private LocalDate dateOfBirth;
     private Gender gender;
     private String bloodType;
+    private String phone;
     private String cccd;
     private String bhytNumber;
     private InsuranceType insuranceType;

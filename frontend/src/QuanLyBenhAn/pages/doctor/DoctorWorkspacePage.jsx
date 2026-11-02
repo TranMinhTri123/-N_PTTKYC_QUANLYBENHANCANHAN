@@ -136,6 +136,15 @@ export const DoctorWorkspacePage = () => {
         </Row>
       </Card>
 
+      {records.length === 0 && (
+        <Card style={{ borderRadius: 12, textAlign: 'center', padding: '36px 20px', marginBottom: 20, background: '#f8fafc' }}>
+          <Title level={4} style={{ color: '#0f766e', margin: 0 }}>👨‍⚕️ Chưa Có Bệnh Án Cần Hội Chẩn</Title>
+          <p style={{ color: '#64748b', fontSize: 14, margin: '8px 0 0' }}>
+            Bác sĩ chưa có bệnh nhân nào được phân công hoặc đặt lịch khám. Dữ liệu bệnh án chỉ xuất hiện khi có đơn đặt lịch hợp lệ đến Bác sĩ hoặc có quyền chia sẻ bệnh án.
+          </p>
+        </Card>
+      )}
+
       {selectedRecord && (
         <Card
           title={

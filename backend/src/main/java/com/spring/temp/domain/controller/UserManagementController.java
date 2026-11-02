@@ -65,8 +65,16 @@ public class UserManagementController {
             user.setDepartment(request.getDepartment() != null && !request.getDepartment().isBlank() 
                     ? request.getDepartment().trim() 
                     : "Khoa Nội Tổng Hợp");
+            if (request.getHospitalName() != null && !request.getHospitalName().isBlank()) {
+                user.setHospitalName(request.getHospitalName().trim());
+            }
+            if (request.getSpecialtyCode() != null && !request.getSpecialtyCode().isBlank()) {
+                user.setSpecialtyCode(request.getSpecialtyCode().trim());
+            }
         } else if ("ROLE_USER".equals(roleName)) {
             user.setDepartment(null);
+            user.setHospitalName(null);
+            user.setSpecialtyCode(null);
         } else if ("ROLE_ADMIN".equals(roleName) && request.getDepartment() != null) {
             user.setDepartment(request.getDepartment().trim());
         }
@@ -120,6 +128,8 @@ public class UserManagementController {
                 .dateOfBirth(user.getDateOfBirth())
                 .roles(roleNames)
                 .department(user.getDepartment())
+                .hospitalName(user.getHospitalName())
+                .specialtyCode(user.getSpecialtyCode())
                 .enabled(user.isEnabled())
                 .accountLocked(user.isAccountLocked())
                 .createdDate(user.getCreatedDate())

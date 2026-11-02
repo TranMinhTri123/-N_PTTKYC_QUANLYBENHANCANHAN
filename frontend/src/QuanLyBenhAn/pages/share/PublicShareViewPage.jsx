@@ -143,10 +143,10 @@ export const PublicShareViewPage = () => {
             <Descriptions.Item label="Chỉ số BMI">
               {profile.heightCm && profile.weightKg ? (
                 (() => {
-                  const bmi = calculateBmi(profile.weightKg, profile.heightCm);
+                  const bmi = calculateBmi(profile.heightCm, profile.weightKg);
                   return (
                     <span>
-                      <strong>{bmi.bmi}</strong> ({bmi.classificationVi})
+                      <strong>{bmi.bmi}</strong> ({bmi.classification || bmi.classificationVi})
                     </span>
                   );
                 })()

@@ -1,6 +1,77 @@
 import axiosClient from './axiosClient';
 
+// Chuẩn hóa payload hồ sơ người thân khớp với DTO Backend Spring Boot
+const normalizeProfilePayload = (data) => {
+  if (!data) return data;
+  const payload = { ...data };
+
+  // 1. Map relationship enum (SELF, CHILD, PARENT, SPOUSE, OTHER)
+  if (payload.relationship === 'FATHER' || payload.relationship === 'MOTHER' || payload.relationship === 'BO' || payload.relationship === 'ME') {
+    payload.relationship = 'PARENT';
+  } else if (payload.relationship === 'VO' || payload.relationship === 'CHONG') {
+    payload.relationship = 'SPOUSE';
+  } else if (payload.relationship === 'CON') {
+    payload.relationship = 'CHILD';
+  } else if (payload.relationship === 'BAN_THAN') {
+    payload.relationship = 'SELF';
+  } else if (!payload.relationship) {
+    payload.relationship = 'OTHER';
+  }
+
+  // 2. Map CCCD / identityCardNumber
+  if (!payload.cccd && payload.identityCardNumber) {
+    payload.cccd = payload.identityCardNumber.trim();
+  }
+  if (!payload.identityCardNumber && payload.cccd) {
+    payload.identityCardNumber = payload.cccd;
+  }
+
+  // 3. Map BHYT / healthInsuranceNumber
+  if (!payload.bhytNumber && payload.healthInsuranceNumber) {
+    payload.bhytNumber = payload.healthInsuranceNumber.trim();
+  }
+  if (!payload.healthInsuranceNumber && payload.bhytNumber) {
+    payload.healthInsuranceNumber = payload.bhytNumber;
+  }
+
+  // 4. Map address / addressDetail
+  if (!payload.addressDetail && payload.address) {
+    payload.addressDetail = payload.address.trim();
+  }
+  if (!payload.address && payload.addressDetail) {
+    payload.address = payload.addressDetail;
+  }
+
+  // 5. Gender uppercase
+  if (payload.gender) {
+    payload.gender = payload.gender.toUpperCase();
+  }
+
+  // 6. Insurance type default
+  if (!payload.insuranceType) {
+    payload.insuranceType = 'BHYT';
+  }
+
+  // 7. Map Phone & Emergency Contact
+  if (!payload.phone && payload.phoneNumber) {
+    payload.phone = payload.phoneNumber.trim();
+  }
+  if (!payload.phoneNumber && payload.phone) {
+    payload.phoneNumber = payload.phone;
+  }
+  if (payload.emergencyContactPhone) {
+    payload.emergencyContactPhone = payload.emergencyContactPhone.trim();
+  }
+  if (payload.emergencyContactName) {
+    payload.emergencyContactName = payload.emergencyContactName.trim();
+  }
+
+  return payload;
+};
+
 export const profileService = {
+  normalizeProfilePayload,
+
   // Lấy danh sách tất cả hồ sơ sức khỏe của gia đình (dạng danh sách)
   getProfiles: async () => {
     return await axiosClient.get('/profiles/all');
@@ -17,12 +88,14 @@ export const profileService = {
 
   // Tạo mới hồ sơ người thân
   createProfile: async (data) => {
-    return await axiosClient.post('/profiles', data);
+    const payload = normalizeProfilePayload(data);
+    return await axiosClient.post('/profiles', payload);
   },
 
   // Cập nhật hồ sơ
   updateProfile: async (id, data) => {
-    return await axiosClient.put(`/profiles/${id}`, data);
+    const payload = normalizeProfilePayload(data);
+    return await axiosClient.put(`/profiles/${id}`, payload);
   },
 
   // Xóa mềm hồ sơ

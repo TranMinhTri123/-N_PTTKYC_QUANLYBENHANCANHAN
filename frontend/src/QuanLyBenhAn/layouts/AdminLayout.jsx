@@ -13,6 +13,7 @@ import {
   BellOutlined,
   ExclamationCircleOutlined,
   UserOutlined,
+  IdcardOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +38,11 @@ export const AdminLayout = () => {
       key: '/admin/users',
       icon: <UsergroupAddOutlined />,
       label: 'Quản Lý Người Dùng',
+    },
+    {
+      key: '/admin/patients',
+      icon: <IdcardOutlined />,
+      label: 'Hồ Sơ Bệnh Nhân (MRN)',
     },
     {
       key: '/admin/catalogs',

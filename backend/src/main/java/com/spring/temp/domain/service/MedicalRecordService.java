@@ -35,6 +35,7 @@ public class MedicalRecordService {
 
     private final MedicalRecordRepository medicalRecordRepository;
     private final HealthProfileRepository healthProfileRepository;
+    private final HealthProfileService healthProfileService;
     private final VitalSignsRepository vitalSignsRepository;
     private final DepartmentTransferRepository departmentTransferRepository;
     private final InternalRecordDetailRepository internalRecordDetailRepository;
@@ -55,9 +56,17 @@ public class MedicalRecordService {
 
         checkProfileAccess(profile, user);
 
-        // Nghiệp vụ Sản khoa: Ràng buộc hồ sơ giới tính Nữ
-        if (request.getRecordType() == RecordType.OBSTETRIC && profile.getGender() != Gender.FEMALE) {
-            throw new SomethingWentWrongException("Bệnh án Sản khoa chỉ áp dụng cho hồ sơ có giới tính Nữ!");
+        // Nghiệp vụ Sản khoa: Ràng buộc hồ sơ giới tính Nữ và thông tin thai sản bắt buộc
+        if (request.getRecordType() == RecordType.OBSTETRIC) {
+            if (profile.getGender() != Gender.FEMALE) {
+                throw new SomethingWentWrongException("Bệnh án Sản khoa chỉ áp dụng cho hồ sơ có giới tính Nữ!");
+            }
+            if (request.getObstetricDetail() == null ||
+                (request.getObstetricDetail().getLmpDate() == null &&
+                 request.getObstetricDetail().getGestationalAgeWeeks() == null &&
+                 request.getObstetricDetail().getEddDate() == null)) {
+                throw new SomethingWentWrongException("Bệnh án Sản khoa bắt buộc phải có thông tin thai sản (Ngày đầu kinh cuối LMP hoặc Tuổi thai / Ngày dự sinh)!");
+            }
         }
 
         // Tự động tính tổng số ngày điều trị nếu có ngày vào và ra viện
@@ -107,11 +116,21 @@ public class MedicalRecordService {
         User user = getAuthenticatedUser(connectedUser);
         Page<MedicalRecord> page;
 
-        if (isAdminOrDoctor(user)) {
+        if (isAdmin(user)) {
             if (recordType != null) {
                 page = medicalRecordRepository.findByRecordTypeAndDeletedFalse(recordType, pageable);
             } else {
                 page = medicalRecordRepository.findByDeletedFalse(pageable);
+            }
+        } else if (isDoctor(user)) {
+            List<Long> assignedProfileIds = healthProfileService.getDoctorAssignedProfileIds(user);
+            if (assignedProfileIds.isEmpty()) {
+                return PageResponse.of(Page.empty(pageable));
+            }
+            if (recordType != null) {
+                page = medicalRecordRepository.findByProfileIdInAndRecordTypeAndDeletedFalse(assignedProfileIds, recordType, pageable);
+            } else {
+                page = medicalRecordRepository.findByProfileIdInAndDeletedFalse(assignedProfileIds, pageable);
             }
         } else {
             List<HealthProfile> userProfiles = healthProfileRepository.findByUserIdAndDeletedFalse(user.getId());
@@ -153,6 +172,14 @@ public class MedicalRecordService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy bệnh án id=" + id));
 
         checkProfileAccess(record.getProfile(), user);
+
+        // Bệnh nhân chỉ xem được bản ghi PUBLISHED và bản mới nhất
+        if (isPatient(user)) {
+            if (record.getStatus() != com.spring.temp.domain.model.enums.EncounterStatus.PUBLISHED || (record.getIsLatest() != null && !record.getIsLatest())) {
+                throw new NotFoundException("Bệnh án không tồn tại hoặc chưa được phát hành chính thức");
+            }
+        }
+
         return mapper.toResponse(record);
     }
 
@@ -168,7 +195,47 @@ public class MedicalRecordService {
 
         checkProfileAccess(record.getProfile(), user);
 
+        if (request.getRecordType() == RecordType.OBSTETRIC) {
+            if (record.getProfile().getGender() != Gender.FEMALE) {
+                throw new SomethingWentWrongException("Bệnh án Sản khoa chỉ áp dụng cho hồ sơ có giới tính Nữ!");
+            }
+            if (request.getObstetricDetail() == null ||
+                (request.getObstetricDetail().getLmpDate() == null &&
+                 request.getObstetricDetail().getGestationalAgeWeeks() == null &&
+                 request.getObstetricDetail().getEddDate() == null)) {
+                throw new SomethingWentWrongException("Bệnh án Sản khoa bắt buộc phải có thông tin thai sản (Ngày đầu kinh cuối LMP hoặc Tuổi thai / Ngày dự sinh)!");
+            }
+            autoCalculateObstetricDates(request.getObstetricDetail());
+        }
+
         autoCalculateTreatmentDays(request);
+
+        // NGUYÊN TẮC BẢO MẬT: Nếu đợt khám đã PUBLISHED, sửa đổi phải tạo phiên bản mới (Version 2)
+        if (record.getStatus() == com.spring.temp.domain.model.enums.EncounterStatus.PUBLISHED) {
+            record.setIsLatest(false);
+            medicalRecordRepository.save(record);
+
+            MedicalRecord newVersion = mapper.toEntity(request);
+            newVersion.setProfile(record.getProfile());
+            newVersion.setPatient(record.getPatient());
+            newVersion.setDoctor(user);
+            newVersion.setVersion(record.getVersion() != null ? record.getVersion() + 1 : 2);
+            newVersion.setIsLatest(true);
+            newVersion.setStatus(com.spring.temp.domain.model.enums.EncounterStatus.PUBLISHED);
+            newVersion.setPublishedAt(java.time.LocalDateTime.now());
+            newVersion.setDeleted(false);
+
+            if (request.getVitalSigns() != null) {
+                VitalSigns newVs = mapper.toVitalSignsEntity(request.getVitalSigns());
+                newVs.setMedicalRecord(newVersion);
+                newVersion.setVitalSigns(vitalSignsRepository.save(newVs));
+            }
+            saveSpecialtyDetail(newVersion, request);
+            MedicalRecord saved = medicalRecordRepository.save(newVersion);
+            log.info("Created new version {} for medical record id={}", saved.getVersion(), saved.getId());
+            return mapper.toResponse(saved);
+        }
+
         mapper.updateEntityFromRequest(request, record);
 
         // Cập nhật sinh hiệu nếu có truyền
@@ -356,47 +423,122 @@ public class MedicalRecordService {
         if (record.getRecordType() == null) return;
 
         switch (record.getRecordType()) {
-            case INTERNAL -> {
+            case GENERAL, INTERNAL -> {
                 if (request.getInternalDetail() != null) {
-                    InternalRecordDetail detail = mapper.toInternalDetailEntity(request.getInternalDetail());
-                    detail.setMedicalRecord(record);
-                    record.setInternalDetail(internalRecordDetailRepository.save(detail));
+                    InternalRecordDetail detail = record.getInternalDetail();
+                    if (detail == null) {
+                        detail = mapper.toInternalDetailEntity(request.getInternalDetail());
+                        detail.setMedicalRecord(record);
+                        record.setInternalDetail(internalRecordDetailRepository.save(detail));
+                    } else {
+                        detail.setCirculatorySystem(request.getInternalDetail().getCirculatorySystem());
+                        detail.setRespiratorySystem(request.getInternalDetail().getRespiratorySystem());
+                        detail.setDigestiveSystem(request.getInternalDetail().getDigestiveSystem());
+                        detail.setUrinarySystem(request.getInternalDetail().getUrinarySystem());
+                        detail.setNervousSystem(request.getInternalDetail().getNervousSystem());
+                        detail.setMusculoskeletalSystem(request.getInternalDetail().getMusculoskeletalSystem());
+                        detail.setEndocrineSystem(request.getInternalDetail().getEndocrineSystem());
+                        detail.setOtherOrgans(request.getInternalDetail().getOtherOrgans());
+                        detail.setChronicMonitoringSummary(request.getInternalDetail().getChronicMonitoringSummary());
+                        detail.setLongTermMedicationPlan(request.getInternalDetail().getLongTermMedicationPlan());
+                    }
                 }
             }
             case SURGICAL -> {
                 if (request.getSurgicalDetail() != null) {
-                    SurgicalRecordDetail detail = mapper.toSurgicalDetailEntity(request.getSurgicalDetail());
-                    detail.setMedicalRecord(record);
-                    record.setSurgicalDetail(surgicalRecordDetailRepository.save(detail));
+                    SurgicalRecordDetail detail = record.getSurgicalDetail();
+                    if (detail == null) {
+                        detail = mapper.toSurgicalDetailEntity(request.getSurgicalDetail());
+                        detail.setMedicalRecord(record);
+                        record.setSurgicalDetail(surgicalRecordDetailRepository.save(detail));
+                    } else {
+                        detail.setPreOpDiagnosis(request.getSurgicalDetail().getPreOpDiagnosis());
+                        detail.setPostOpDiagnosis(request.getSurgicalDetail().getPostOpDiagnosis());
+                        detail.setAnesthesiaMethod(request.getSurgicalDetail().getAnesthesiaMethod());
+                        detail.setPostOpMonitoring(request.getSurgicalDetail().getPostOpMonitoring());
+                        detail.setDrainRemovalDate(request.getSurgicalDetail().getDrainRemovalDate());
+                        detail.setSutureRemovalDate(request.getSurgicalDetail().getSutureRemovalDate());
+                        detail.setPostOpCareGuidelines(request.getSurgicalDetail().getPostOpCareGuidelines());
+                    }
                 }
             }
             case PEDIATRIC -> {
                 if (request.getPediatricDetail() != null) {
-                    PediatricRecordDetail detail = mapper.toPediatricDetailEntity(request.getPediatricDetail());
-                    detail.setMedicalRecord(record);
-                    record.setPediatricDetail(pediatricRecordDetailRepository.save(detail));
+                    PediatricRecordDetail detail = record.getPediatricDetail();
+                    if (detail == null) {
+                        detail = mapper.toPediatricDetailEntity(request.getPediatricDetail());
+                        detail.setMedicalRecord(record);
+                        record.setPediatricDetail(pediatricRecordDetailRepository.save(detail));
+                    } else {
+                        detail.setFatherName(request.getPediatricDetail().getFatherName());
+                        detail.setFatherOccupation(request.getPediatricDetail().getFatherOccupation());
+                        detail.setMotherName(request.getPediatricDetail().getMotherName());
+                        detail.setMotherOccupation(request.getPediatricDetail().getMotherOccupation());
+                        detail.setGestationalAgeWeeks(request.getPediatricDetail().getGestationalAgeWeeks());
+                        detail.setBirthWeightGrams(request.getPediatricDetail().getBirthWeightGrams());
+                        detail.setDeliveryMethod(request.getPediatricDetail().getDeliveryMethod());
+                        detail.setApgar1min(request.getPediatricDetail().getApgar1min());
+                        detail.setApgar5min(request.getPediatricDetail().getApgar5min());
+                        detail.setFeedingRegimen(request.getPediatricDetail().getFeedingRegimen());
+                        detail.setPsychomotorDevelopment(request.getPediatricDetail().getPsychomotorDevelopment());
+                    }
                 }
             }
             case OBSTETRIC -> {
                 if (request.getObstetricDetail() != null) {
-                    ObstetricRecordDetail detail = mapper.toObstetricDetailEntity(request.getObstetricDetail());
-                    detail.setMedicalRecord(record);
-                    record.setObstetricDetail(obstetricRecordDetailRepository.save(detail));
+                    ObstetricRecordDetail detail = record.getObstetricDetail();
+                    if (detail == null) {
+                        detail = mapper.toObstetricDetailEntity(request.getObstetricDetail());
+                        detail.setMedicalRecord(record);
+                        record.setObstetricDetail(obstetricRecordDetailRepository.save(detail));
+                    } else {
+                        detail.setMenarcheAge(request.getObstetricDetail().getMenarcheAge());
+                        detail.setMenstrualCycleDays(request.getObstetricDetail().getMenstrualCycleDays());
+                        detail.setLmpDate(request.getObstetricDetail().getLmpDate());
+                        detail.setEddDate(request.getObstetricDetail().getEddDate());
+                        detail.setGestationalAgeWeeks(request.getObstetricDetail().getGestationalAgeWeeks());
+                        detail.setParaTerm(request.getObstetricDetail().getParaTerm());
+                        detail.setParaPreterm(request.getObstetricDetail().getParaPreterm());
+                        detail.setParaAbortion(request.getObstetricDetail().getParaAbortion());
+                        detail.setParaLiving(request.getObstetricDetail().getParaLiving());
+                        detail.setDeliveryMethod(request.getObstetricDetail().getDeliveryMethod());
+                        detail.setDeliveryComplications(request.getObstetricDetail().getDeliveryComplications());
+                        detail.setNewbornWeightGrams(request.getObstetricDetail().getNewbornWeightGrams());
+                        detail.setPostpartumCondition(request.getObstetricDetail().getPostpartumCondition());
+                    }
                 }
             }
         }
     }
 
     private void checkProfileAccess(HealthProfile profile, User user) {
-        if (!profile.getUser().getId().equals(user.getId()) && !isAdminOrDoctor(user)) {
+        if (isAdmin(user)) {
+            throw new AccessDeniedException("Quản trị viên hệ thống không có thẩm quyền truy cập nội dung bệnh án y tế!");
+        }
+        if (isDoctor(user)) {
+            List<Long> assignedIds = healthProfileService.getDoctorAssignedProfileIds(user);
+            if (!assignedIds.contains(profile.getId())) {
+                throw new AccessDeniedException("Bác sĩ không phụ trách bệnh nhân này hoặc chưa có lịch hẹn tiếp nhận!");
+            }
+            return;
+        }
+        if (!profile.getUser().getId().equals(user.getId())) {
             throw new AccessDeniedException("Bạn không có quyền truy cập hoặc chỉnh sửa hồ sơ này!");
         }
     }
 
-    private boolean isAdminOrDoctor(User user) {
+    public boolean isPatient(User user) {
+        return !isDoctor(user) && !isAdmin(user);
+    }
+
+    public boolean isAdmin(User user) {
         if (user.getRoles() == null) return false;
-        return user.getRoles().stream()
-                .anyMatch(r -> "ROLE_ADMIN".equals(r.getName()) || "ROLE_DOCTOR".equals(r.getName()));
+        return user.getRoles().stream().anyMatch(r -> "ROLE_ADMIN".equals(r.getName()));
+    }
+
+    public boolean isDoctor(User user) {
+        if (user.getRoles() == null) return false;
+        return user.getRoles().stream().anyMatch(r -> "ROLE_DOCTOR".equals(r.getName()));
     }
 
     private User getAuthenticatedUser(Principal connectedUser) {

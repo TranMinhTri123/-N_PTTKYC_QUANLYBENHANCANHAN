@@ -2,6 +2,7 @@ package com.spring.temp.auth;
 
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter
@@ -18,5 +19,9 @@ public class AuthenticationResponse {
     private String email;
     private String fullName;
     private String phone;
+    private LocalDate dateOfBirth;
+    private String department;
+    private String hospitalName;
+    private String specialtyCode;
     private List<String> roles;
 }

@@ -21,6 +21,8 @@ public class UserManagementResponse {
     private LocalDate dateOfBirth;
     private List<String> roles;
     private String department;
+    private String hospitalName;
+    private String specialtyCode;
     private boolean enabled;
     private boolean accountLocked;
     private LocalDateTime createdDate;

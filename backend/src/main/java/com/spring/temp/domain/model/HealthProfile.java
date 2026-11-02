@@ -43,8 +43,11 @@ public class HealthProfile {
     @Column(nullable = false, length = 10)
     private Gender gender;
 
-    @Column(length = 10)
+    @Column(length = 30)
     private String bloodType;
+
+    @Column(length = 20)
+    private String phone;
 
     @Column(length = 20)
     private String cccd;

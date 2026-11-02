@@ -6,31 +6,20 @@ import {
   Typography,
   Tag,
   Space,
-  Modal,
-  Form,
-  Input,
-  Select,
-  DatePicker,
   notification,
-  Row,
-  Col,
 } from 'antd';
 import {
-  CalendarOutlined,
   PlusOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  FileAddOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import dayjs from 'dayjs';
 import appointmentService from '../../services/appointmentService';
 import profileService from '../../services/profileService';
 import { formatDate } from '../../utils/formatters';
+import AppointmentBookingModal from './AppointmentBookingModal';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
 
 export const PatientAppointmentsPage = () => {
   const navigate = useNavigate();
@@ -38,7 +27,6 @@ export const PatientAppointmentsPage = () => {
   const [appointments, setAppointments] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [form] = Form.useForm();
 
   const loadData = async () => {
     setLoading(true);
@@ -67,40 +55,6 @@ export const PatientAppointmentsPage = () => {
     loadData();
   }, []);
 
-  const handleCreateAppointment = async (values) => {
-    try {
-      await appointmentService.createAppointment({
-        profileId: values.profileId,
-        title: values.title?.trim() || 'Lịch khám định kỳ',
-        hospitalName: values.hospitalName || 'Bệnh Viện Đa Khoa',
-        department: values.department || 'Khoa Nội',
-        attendingDoctor: values.doctor || 'BS. Chuyên khoa',
-        appointmentTime: values.appointmentTime ? values.appointmentTime.format('YYYY-MM-DDTHH:mm:ss') : dayjs().add(2, 'day').format('YYYY-MM-DDTHH:mm:ss'),
-        appointmentType: values.appointmentType || 'TAI_KHAM',
-        notes: values.notes || 'Nhịn ăn sáng để làm xét nghiệm máu',
-      });
-      notification.success({ message: 'Đặt lịch khám thành công!' });
-      setModalOpen(false);
-      form.resetFields();
-      loadData();
-    } catch (err) {
-      notification.error({ message: 'Lỗi', description: err.message || 'Không thể tạo lịch hẹn.' });
-    }
-  };
-
-  const handleComplete = async (id) => {
-    try {
-      await appointmentService.updateAppointmentStatus(id, 'COMPLETED');
-      notification.success({
-        message: 'Xác Nhận Đã Khám Xong',
-        description: 'Bạn có thể bấm nút Tạo Bệnh Án để lưu lại đợt khám này vào sổ!',
-      });
-      loadData();
-    } catch (err) {
-      notification.error({ message: 'Lỗi', description: err.message || 'Không thể đổi trạng thái.' });
-    }
-  };
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -108,12 +62,16 @@ export const PatientAppointmentsPage = () => {
           <Title level={3} style={{ margin: 0, color: '#0f172a' }}>
             Lịch Hẹn Khám
           </Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Quản lý và đặt lịch khám bệnh trực tuyến với 5 bệnh viện đối tác
+          </Text>
         </div>
         <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setModalOpen(true)}
           style={{ borderRadius: 6, fontWeight: 600, background: '#0284c7' }}
+          size="large"
         >
           Đặt Lịch Khám
         </Button>
@@ -133,21 +91,30 @@ export const PatientAppointmentsPage = () => {
               render: (id) => <Tag color="blue">#LH-{id}</Tag>,
             },
             {
-              title: 'Cơ Sở Khám & Khoa',
+              title: 'Bệnh Viện & Chuyên Khoa',
               dataIndex: 'hospitalName',
               key: 'hospitalName',
               render: (hosp, record) => (
                 <div>
-                  <Text strong>{hosp || 'Bệnh Viện'}</Text>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{record.department || 'Khoa khám'}</div>
+                  <Text strong style={{ color: '#0369a1' }}>
+                    {hosp || record.facilityName || 'Bệnh Viện'}
+                  </Text>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    {record.department || 'Khoa khám'}
+                  </div>
                 </div>
               ),
             },
             {
-              title: 'Nội Dung Khám',
-              dataIndex: 'title',
-              key: 'title',
-              render: (t, record) => t || record.notes || 'Khám tổng quát',
+              title: 'Bác Sĩ Phụ Trách',
+              key: 'doctor',
+              render: (_, record) => (
+                <div>
+                  <Text strong style={{ color: '#0f766e' }}>
+                    {record.doctorName || record.attendingDoctor || 'BS. Chuyên khoa'}
+                  </Text>
+                </div>
+              ),
             },
             {
               title: 'Thời Gian Hẹn',
@@ -161,96 +128,97 @@ export const PatientAppointmentsPage = () => {
               ),
             },
             {
-              title: 'Lời Dặn',
-              dataIndex: 'notes',
-              key: 'notes',
-              render: (n) => <span style={{ color: '#d97706', fontSize: 12 }}>{n || 'Mang hồ sơ cũ'}</span>,
+              title: 'Nội Dung / Lý Do Khám',
+              dataIndex: 'title',
+              key: 'title',
+              render: (t, record) => (
+                <div>
+                  <div>{t || 'Khám theo yêu cầu'}</div>
+                  {record.notes && (
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                      {record.notes}
+                    </div>
+                  )}
+                </div>
+              ),
             },
             {
-              title: 'Trạng Thái',
-              dataIndex: 'status',
+              title: 'Trạng Thái & Phản Hồi Bác Sĩ',
               key: 'status',
-              render: (status) =>
-                status === 'COMPLETED' ? (
-                  <Tag color="success">Đã Khám</Tag>
-                ) : (
-                  <Tag color="processing">Chờ Khám</Tag>
-                ),
+              render: (_, record) => {
+                const status = record.status;
+                let statusTag = <Tag color="processing">Chờ Khám</Tag>;
+                if (status === 'PENDING') {
+                  statusTag = <Tag color="warning" icon={<ClockCircleOutlined />}>Chờ bác sĩ tiếp nhận</Tag>;
+                } else if (status === 'CONFIRMED' || status === 'SCHEDULED') {
+                  statusTag = <Tag color="success" icon={<CheckCircleOutlined />}>Bác sĩ đã đồng ý xếp lịch</Tag>;
+                } else if (status === 'RESCHEDULED') {
+                  statusTag = <Tag color="orange" icon={<ClockCircleOutlined />}>Bác sĩ hẹn lại ngày giờ</Tag>;
+                } else if (status === 'CANCELLED') {
+                  statusTag = <Tag color="error">Bác sĩ từ chối / Đã hủy</Tag>;
+                } else if (status === 'COMPLETED') {
+                  statusTag = <Tag color="purple">Đã khám xong</Tag>;
+                }
+
+                return (
+                  <div>
+                    {statusTag}
+                    {record.rescheduledTime && (
+                      <div style={{ marginTop: 4, fontSize: 12, color: '#d97706', fontWeight: 600 }}>
+                        🗓️ Giờ hẹn mới: {formatDate(record.rescheduledTime)}
+                      </div>
+                    )}
+                    {record.doctorNote && (
+                      <div style={{ marginTop: 4, fontSize: 12, color: '#0f766e', background: '#f0fdf4', padding: '3px 8px', borderRadius: 4, border: '1px solid #bbf7d0' }}>
+                        👨‍⚕️ <b>Bác sĩ nhắn:</b> {record.doctorNote}
+                      </div>
+                    )}
+                  </div>
+                );
+              },
             },
             {
               title: 'Thao Tác',
               key: 'actions',
-              render: (_, record) => (
-                <Space>
-                  {record.status !== 'COMPLETED' && (
-                    <Button
-                      size="small"
-                      type="primary"
-                      ghost
-                      icon={<CheckCircleOutlined />}
-                      onClick={() => handleComplete(record.id)}
-                    >
-                      Đã Khám Xong
-                    </Button>
-                  )}
-                  <Button
-                    size="small"
-                    icon={<FileAddOutlined />}
-                    onClick={() => navigate('/patient/records/create')}
-                  >
-                    Tạo Bệnh Án
-                  </Button>
-                </Space>
-              ),
+              render: (_, record) => {
+                const canCancel = record.status === 'PENDING' || record.status === 'CONFIRMED';
+                return (
+                  <Space>
+                    {canCancel && (
+                      <Button
+                        size="small"
+                        danger
+                        onClick={async () => {
+                          try {
+                            await appointmentService.updateStatus(record.id, 'CANCELLED');
+                            notification.success({ message: 'Đã hủy lịch hẹn', description: 'Bạn đã hủy yêu cầu đặt lịch hẹn thành công.' });
+                            loadData();
+                          } catch (err) {
+                            notification.error({ message: 'Lỗi', description: err.message || 'Không thể hủy lịch.' });
+                          }
+                        }}
+                      >
+                        Hủy Lịch
+                      </Button>
+                    )}
+                  </Space>
+                );
+              },
             },
           ]}
         />
       </Card>
 
-      {/* Modal Đặt Lịch Hẹn */}
-      <Modal
-        title="Đặt Lịch Hẹn Khám Mới"
+      {/* MODAL ĐẶT LỊCH KHÁM CASCADING (BỆNH VIỆN → CHUYÊN KHOA → BÁC SĨ → NGÀY HẸN) */}
+      <AppointmentBookingModal
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
-        footer={null}
-      >
-        <Form form={form} layout="vertical" onFinish={handleCreateAppointment} style={{ marginTop: 16 }}>
-          <Form.Item name="profileId" label="Người khám" rules={[{ required: true }]}>
-            <Select placeholder="Chọn thành viên gia đình...">
-              {profiles.map((p) => (
-                <Option key={p.id} value={p.id}>{p.fullName} ({p.relationship || 'Bản thân'})</Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="hospitalName" label="Bệnh viện / Phòng khám" rules={[{ required: true }]}>
-                <Input placeholder="Bệnh viện Bạch Mai, Chợ Rẫy..." />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="department" label="Chuyên khoa">
-                <Input placeholder="Khoa Tim Mạch, Khoa Tiêu Hóa..." />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item name="appointmentTime" label="Ngày giờ hẹn khám" rules={[{ required: true }]}>
-            <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{ width: '100%' }} />
-          </Form.Item>
-
-          <Form.Item name="notes" label="Ghi chú dặn dò (vd: Nhịn ăn sáng, mang phim cũ)">
-            <Input placeholder="Nhịn ăn sáng lấy máu xét nghiệm..." />
-          </Form.Item>
-
-          <Form.Item style={{ textAlign: 'right', marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" style={{ background: '#0284c7' }}>
-              Xác Nhận Đặt Lịch
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
+        onClose={() => setModalOpen(false)}
+        onSuccess={() => {
+          loadData();
+        }}
+        onReloadProfiles={loadData}
+        profiles={profiles}
+      />
     </div>
   );
 };

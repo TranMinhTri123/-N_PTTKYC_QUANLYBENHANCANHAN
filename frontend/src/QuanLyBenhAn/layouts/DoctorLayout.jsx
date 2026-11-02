@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Typography, Space, Tag, Modal, Badge } from 'antd';
 import {
   MedicineBoxFilled,
@@ -8,6 +8,7 @@ import {
   ExperimentOutlined,
   TeamOutlined,
   CommentOutlined,
+  CalendarOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
@@ -15,9 +16,12 @@ import {
   BellOutlined,
   ExclamationCircleOutlined,
   HomeOutlined,
+  ScheduleOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { useAuth } from '../context/AuthContext';
+import appointmentService from '../services/appointmentService';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -29,11 +33,101 @@ export const DoctorLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notificationItems, setNotificationItems] = useState([]);
+
+  useEffect(() => {
+    const loadAlerts = async () => {
+      try {
+        const res = await appointmentService.getAppointments();
+        const list = Array.isArray(res?.data) ? res.data : (res?.data?.content || []);
+        const today = dayjs().startOf('day');
+
+        const pending = list.filter((a) => a.status === 'PENDING');
+        const todayAppts = list.filter(
+          (a) =>
+            (a.status === 'CONFIRMED' || a.status === 'SCHEDULED') &&
+            a.appointmentTime &&
+            dayjs(a.appointmentTime).isSame(today, 'day')
+        );
+        const cancelled = list.filter((a) => a.status === 'CANCELLED');
+
+        const items = [];
+        if (pending.length > 0) {
+          items.push({
+            key: 'pending',
+            label: (
+              <div onClick={() => navigate('/doctor/appointments')} style={{ padding: '4px 0' }}>
+                <Badge status="warning" /> <strong>{pending.length} yêu cầu lịch mới</strong> chờ tiếp nhận
+              </div>
+            ),
+          });
+        }
+        if (todayAppts.length > 0) {
+          items.push({
+            key: 'today',
+            label: (
+              <div onClick={() => navigate('/doctor/appointments')} style={{ padding: '4px 0' }}>
+                <Badge status="processing" /> <strong>{todayAppts.length} ca khám hôm nay</strong> cần thực hiện
+              </div>
+            ),
+          });
+        }
+        if (cancelled.length > 0) {
+          items.push({
+            key: 'cancelled',
+            label: (
+              <div onClick={() => navigate('/doctor/appointments')} style={{ padding: '4px 0' }}>
+                <Badge status="error" /> {cancelled.length} lịch khám đã từ chối / hủy
+              </div>
+            ),
+          });
+        }
+
+        if (items.length === 0) {
+          items.push({
+            key: 'empty',
+            label: <div style={{ color: '#64748b', padding: '6px 0' }}>Không có thông báo mới</div>,
+          });
+        }
+
+        items.push({ type: 'divider' });
+        items.push({
+          key: 'all',
+          label: (
+            <div
+              onClick={() => navigate('/doctor/appointments')}
+              style={{ textAlign: 'center', color: '#0f766e', fontWeight: 600, padding: '4px 0' }}
+            >
+              Mở Danh Sách Lịch Hẹn Khám →
+            </div>
+          ),
+        });
+
+        setNotificationItems(items);
+        setNotificationCount(pending.length + todayAppts.length);
+      } catch (err) {
+        console.warn('Lỗi tải thông báo lịch:', err);
+      }
+    };
+    loadAlerts();
+  }, [location.pathname]);
+
   const menuItems = [
     {
       key: '/doctor/workspace',
       icon: <SolutionOutlined />,
       label: 'Bàn Khám Bệnh',
+    },
+    {
+      key: '/doctor/appointments',
+      icon: <CalendarOutlined />,
+      label: 'Lịch Hẹn Khám',
+    },
+    {
+      key: '/doctor/schedule',
+      icon: <ScheduleOutlined />,
+      label: 'Lịch & Ca Làm Việc',
     },
     {
       key: '/doctor/dashboard',
@@ -59,6 +153,11 @@ export const DoctorLayout = () => {
       key: '/doctor/patients',
       icon: <TeamOutlined />,
       label: 'Danh Sách Bệnh Nhân',
+    },
+    {
+      key: '/doctor/profile',
+      icon: <UserOutlined />,
+      label: 'Hồ Sơ Bác Sĩ',
     },
     {
       key: '/doctor/notes',
@@ -95,7 +194,7 @@ export const DoctorLayout = () => {
       {
         key: 'profile',
         icon: <UserOutlined />,
-        label: <Link to="/account/profile">Hồ sơ bác sĩ</Link>,
+        label: <Link to="/doctor/profile">Hồ sơ bác sĩ</Link>,
       },
       {
         key: 'notifications',
@@ -230,14 +329,15 @@ export const DoctorLayout = () => {
               Chuyển Sang Sổ Cá Nhân
             </Button>
 
-            <Badge count={3} size="small">
-              <Button
-                type="text"
-                shape="circle"
-                icon={<BellOutlined style={{ color: '#ffffff', fontSize: 18 }} />}
-                onClick={() => navigate('/notifications')}
-              />
-            </Badge>
+            <Dropdown menu={{ items: notificationItems }} placement="bottomRight" arrow>
+              <Badge count={notificationCount} size="small" offset={[-2, 4]}>
+                <Button
+                  type="text"
+                  shape="circle"
+                  icon={<BellOutlined style={{ color: '#ffffff', fontSize: 18 }} />}
+                />
+              </Badge>
+            </Dropdown>
 
             <Dropdown menu={userMenu} placement="bottomRight" arrow>
               <Space style={{ cursor: 'pointer' }}>

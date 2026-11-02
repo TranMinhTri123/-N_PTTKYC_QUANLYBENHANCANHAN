@@ -132,6 +132,10 @@ public class PrescriptionService {
 
         checkProfileAccess(record.getProfile(), user);
 
+        if (isPatient(user) && record.getStatus() != com.spring.temp.domain.model.enums.EncounterStatus.PUBLISHED) {
+            throw new NotFoundException("Đơn thuốc không tồn tại hoặc chưa được phát hành chính thức");
+        }
+
         return prescriptionRepository.findByMedicalRecordIdAndDeletedFalse(medicalRecordId)
                 .stream()
                 .map(p -> {
@@ -149,6 +153,10 @@ public class PrescriptionService {
                 .orElseThrow(() -> new NotFoundException("Không tìm thấy đơn thuốc id=" + id));
 
         checkProfileAccess(prescription.getMedicalRecord().getProfile(), user);
+
+        if (isPatient(user) && prescription.getMedicalRecord().getStatus() != com.spring.temp.domain.model.enums.EncounterStatus.PUBLISHED) {
+            throw new NotFoundException("Đơn thuốc không tồn tại hoặc chưa được phát hành chính thức");
+        }
 
         PrescriptionResponse response = mapper.toResponse(prescription);
         boolean hasWarning = prescription.getItems() != null && prescription.getItems().stream().anyMatch(PrescriptionItem::isHasAllergyWarning);
@@ -251,15 +259,29 @@ public class PrescriptionService {
     }
 
     private void checkProfileAccess(HealthProfile profile, User user) {
-        if (!profile.getUser().getId().equals(user.getId()) && !isAdminOrDoctor(user)) {
+        if (isAdmin(user)) {
+            throw new AccessDeniedException("Quản trị viên hệ thống không có thẩm quyền truy cập đơn thuốc y tế!");
+        }
+        if (isDoctor(user)) {
+            return;
+        }
+        if (!profile.getUser().getId().equals(user.getId())) {
             throw new AccessDeniedException("Bạn không có quyền truy cập hoặc chỉnh sửa thông tin này!");
         }
     }
 
-    private boolean isAdminOrDoctor(User user) {
+    private boolean isAdmin(User user) {
         if (user.getRoles() == null) return false;
-        return user.getRoles().stream()
-                .anyMatch(r -> "ROLE_ADMIN".equals(r.getName()) || "ROLE_DOCTOR".equals(r.getName()));
+        return user.getRoles().stream().anyMatch(r -> "ROLE_ADMIN".equals(r.getName()));
+    }
+
+    private boolean isDoctor(User user) {
+        if (user.getRoles() == null) return false;
+        return user.getRoles().stream().anyMatch(r -> "ROLE_DOCTOR".equals(r.getName()));
+    }
+
+    private boolean isPatient(User user) {
+        return !isDoctor(user) && !isAdmin(user);
     }
 
     private User getAuthenticatedUser(Principal connectedUser) {

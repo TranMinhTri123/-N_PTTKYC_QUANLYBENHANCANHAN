@@ -33,6 +33,7 @@ public class SecurityConfig {
                         "/auth/authenticate",
                         "/auth/activate-account",
                         "/auth/refreshToken",
+                        "/auth/refresh-token",
                         "/auth/forgot-password",
                         "/auth/verify-reset-code",
                         "/auth/reset-password",
@@ -46,7 +47,10 @@ public class SecurityConfig {
                         "/configuration/security",
                         "/swagger-ui/**",
                         "/webjars/**",
-                        "/swagger-ui.html"
+                        "/swagger-ui.html",
+                        "/catalogs/**",
+                        "/doctor-leaves/doctor/**",
+                        "/doctor-schedules/doctor/**"
                 ).permitAll().anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
                 .authenticationProvider(authenticationProvider)

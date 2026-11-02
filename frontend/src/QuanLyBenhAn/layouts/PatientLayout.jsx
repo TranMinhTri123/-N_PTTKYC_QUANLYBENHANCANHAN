@@ -3,14 +3,10 @@ import { Layout, Menu, Button, Avatar, Dropdown, Typography, Space, Tag, Modal, 
 import {
   HeartFilled,
   DashboardOutlined,
-  FileAddOutlined,
   BookOutlined,
-  TeamOutlined,
   MedicineBoxOutlined,
-  HeartOutlined,
   CalendarOutlined,
   ExperimentOutlined,
-  ShareAltOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
@@ -18,6 +14,8 @@ import {
   BellOutlined,
   PhoneFilled,
   ExclamationCircleOutlined,
+  IdcardOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -39,34 +37,24 @@ export const PatientLayout = () => {
       label: 'Bảng Điều Khiển',
     },
     {
-      key: '/patient/records/create',
-      icon: <FileAddOutlined />,
-      label: 'Tạo Bệnh Án',
+      key: '/patient/profiles',
+      icon: <UserOutlined />,
+      label: 'Hồ Sơ Cá Nhân',
+    },
+    {
+      key: '/patient/link',
+      icon: <IdcardOutlined />,
+      label: 'Định Danh & Mã MRN',
     },
     {
       key: '/patient/records',
       icon: <BookOutlined />,
-      label: 'Sổ Bệnh Án',
-    },
-    {
-      key: '/patient/profiles',
-      icon: <TeamOutlined />,
-      label: 'Hồ Sơ Người Thân',
+      label: 'Lịch Sử Khám Bệnh',
     },
     {
       key: '/patient/prescriptions',
       icon: <MedicineBoxOutlined />,
-      label: 'Tủ Thuốc Gia Đình',
-    },
-    {
-      key: '/patient/metrics',
-      icon: <HeartOutlined />,
-      label: 'Chỉ Số Sức Khỏe',
-    },
-    {
-      key: '/patient/appointments',
-      icon: <CalendarOutlined />,
-      label: 'Lịch Hẹn Khám',
+      label: 'Đơn Thuốc Điều Trị',
     },
     {
       key: '/patient/clinical',
@@ -74,17 +62,22 @@ export const PatientLayout = () => {
       label: 'Xét Nghiệm & CĐHA',
     },
     {
-      key: '/patient/shares',
-      icon: <ShareAltOutlined />,
-      label: 'Chia Sẻ Hồ Sơ',
+      key: '/patient/appointments',
+      icon: <CalendarOutlined />,
+      label: 'Lịch Hẹn & Tái Khám',
+    },
+    {
+      key: '/patient/audit-logs',
+      icon: <SafetyCertificateOutlined />,
+      label: 'Nhật Ký Truy Cập',
     },
   ];
 
   const handleLogoutConfirm = () => {
     Modal.confirm({
-      title: 'Đăng xuất khỏi Sổ Sức Khỏe Gia Đình?',
+      title: 'Đăng xuất khỏi Cổng Bệnh Nhân?',
       icon: <ExclamationCircleOutlined style={{ color: '#ef4444' }} />,
-      content: 'Bạn sẽ cần đăng nhập lại để tiếp tục quản lý hồ sơ.',
+      content: 'Bạn sẽ cần đăng nhập lại để tiếp tục xem hồ sơ bệnh án.',
       okText: 'Đăng Xuất',
       okType: 'danger',
       cancelText: 'Hủy',
@@ -171,9 +164,9 @@ export const PatientLayout = () => {
           {!collapsed && (
             <div style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>
               <div style={{ color: '#0284c7', fontWeight: 700, fontSize: 16, letterSpacing: '-0.02em' }}>
-                PHR GIA ĐÌNH
+                CỔNG BỆNH NHÂN
               </div>
-              <div style={{ color: '#64748b', fontSize: 11 }}>Sổ Sức Khỏe Điện Tử</div>
+              <div style={{ color: '#64748b', fontSize: 11 }}>Bệnh Viện Đa Khoa</div>
             </div>
           )}
         </div>
@@ -187,17 +180,17 @@ export const PatientLayout = () => {
           style={{ marginTop: 8, borderRight: 0 }}
         />
 
-        {/* Nút Tạo Nhanh Bệnh Án ở Sidebar */}
+        {/* Nút Đặt Lịch Khám ở Sidebar */}
         {!collapsed && (
           <div style={{ position: 'absolute', bottom: 20, left: 16, right: 16 }}>
             <Button
               block
               type="primary"
-              icon={<FileAddOutlined />}
-              onClick={() => navigate('/patient/records/create')}
+              icon={<CalendarOutlined />}
+              onClick={() => navigate('/patient/appointments')}
               style={{ borderRadius: 8, fontWeight: 600, height: 40, background: '#0284c7', borderColor: '#0284c7' }}
             >
-              Tạo Bệnh Án
+              Đặt Lịch Khám
             </Button>
           </div>
         )}

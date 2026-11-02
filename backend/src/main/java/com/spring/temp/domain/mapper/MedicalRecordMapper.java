@@ -4,7 +4,7 @@ import com.spring.temp.domain.dto.medicalrecord.*;
 import com.spring.temp.domain.model.*;
 import org.mapstruct.*;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface MedicalRecordMapper {
 
     @Mapping(target = "id", ignore = true)

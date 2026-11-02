@@ -36,8 +36,9 @@ public class MedicalRecordController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "3.1 Tạo bệnh án mới theo chuyên khoa", 
-               description = "Tạo bệnh án Nội, Ngoại, Nhi hoặc Sản khoa. Tự động tính BMI, ngày điều trị và dự sinh theo công thức Naegele.")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "3.1 Tạo bệnh án mới theo chuyên khoa (Chỉ Bác sĩ / Quản trị viên)", 
+               description = "Bác sĩ tạo bệnh án Nội, Ngoại, Nhi hoặc Sản khoa. Bệnh nhân không có quyền tạo bệnh án.")
     public ResponseEntity<ApiResponse<MedicalRecordResponse>> createMedicalRecord(
             @RequestBody @Valid MedicalRecordRequest request,
             Principal connectedUser
@@ -89,6 +90,7 @@ public class MedicalRecordController {
     }
 
     @PutMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "3.4 Cập nhật bệnh án", 
                description = "Cập nhật các trường thông tin bệnh án, chẩn đoán ra viện, chế độ điều trị và chuyên khoa")
     public ResponseEntity<ApiResponse<MedicalRecordResponse>> updateMedicalRecord(
@@ -101,6 +103,7 @@ public class MedicalRecordController {
     }
 
     @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "3.5 Xóa mềm bệnh án", 
                description = "Đánh dấu xóa mềm bệnh án (deleted = true), giữ toàn vẹn dữ liệu cho việc kiểm toán")
     public ResponseEntity<ApiResponse<Void>> deleteMedicalRecord(
@@ -116,6 +119,7 @@ public class MedicalRecordController {
     // ==========================================
 
     @PostMapping("/{id}/vital-signs")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "3.6 Cập nhật sinh hiệu lâm sàng", 
                description = "Cập nhật chỉ số Mạch, Nhiệt độ, Huyết áp, Nhịp thở, SpO2, Cân nặng, Chiều cao và tự tính BMI")
     public ResponseEntity<ApiResponse<VitalSignsDto>> addOrUpdateVitalSigns(
@@ -129,6 +133,7 @@ public class MedicalRecordController {
 
     @PostMapping("/{id}/transfers")
     @ResponseStatus(HttpStatus.CREATED)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "3.7 Thêm luân chuyển khoa điều trị", 
                description = "Ghi nhận việc chuyển bệnh nhân từ khoa này sang khoa khác trong cùng đợt điều trị nội trú")
     public ResponseEntity<ApiResponse<DepartmentTransferDto>> addDepartmentTransfer(

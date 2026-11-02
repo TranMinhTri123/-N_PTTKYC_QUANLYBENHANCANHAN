@@ -34,7 +34,8 @@ public class DoctorNoteController {
     }
 
     @GetMapping("/record/{medicalRecordId}")
-    @Operation(summary = "Lấy danh sách ghi chú bác sĩ theo bệnh án", description = "Xem lịch sử các ghi chú, tư vấn của bác sĩ")
+    @PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
+    @Operation(summary = "Lấy danh sách ghi chú bác sĩ theo bệnh án", description = "Chỉ Bác sĩ và Quản trị viên mới được xem ghi chú nội bộ")
     public ResponseEntity<ApiResponse<List<DoctorNoteResponse>>> getNotesByRecord(
             @PathVariable Long medicalRecordId) {
         List<DoctorNoteResponse> list = doctorNoteService.getNotesByMedicalRecord(medicalRecordId);

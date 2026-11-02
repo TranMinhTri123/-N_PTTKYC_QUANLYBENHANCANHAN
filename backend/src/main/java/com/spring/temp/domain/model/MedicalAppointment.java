@@ -22,9 +22,19 @@ public class MedicalAppointment {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id", nullable = false)
+    @JoinColumn(name = "profile_id")
     @JsonIgnore
     private HealthProfile profile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id")
+    @JsonIgnore
+    private Patient patient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "attending_doctor_user_id")
+    @JsonIgnore
+    private User doctor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "medical_record_id")
@@ -40,8 +50,20 @@ public class MedicalAppointment {
     @Column(length = 150)
     private String doctorName;
 
+    @Column(name = "doctor_id")
+    private Long doctorId;
+
+    @Column(name = "patient_phone", length = 30)
+    private String patientPhone;
+
     @Column(nullable = false)
     private LocalDateTime appointmentTime;
+
+    @Column(name = "time_slot", length = 50)
+    private String timeSlot;
+
+    @Column(name = "rescheduled_time")
+    private LocalDateTime rescheduledTime;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
@@ -50,11 +72,14 @@ public class MedicalAppointment {
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     @Builder.Default
-    private AppointmentStatus status = AppointmentStatus.SCHEDULED;
+    private AppointmentStatus status = AppointmentStatus.PENDING;
 
     @Builder.Default
     private Boolean reminderEnabled = true;
 
-    @Column(length = 500)
+    @Column(length = 1000)
     private String notes;
+
+    @Column(name = "doctor_note", length = 1000)
+    private String doctorNote;
 }

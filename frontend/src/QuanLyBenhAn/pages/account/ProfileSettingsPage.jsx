@@ -55,12 +55,23 @@ export const ProfileSettingsPage = () => {
           <Tag color="success">Đang hoạt động</Tag>
         </Descriptions.Item>
 
-        {user?.department && (
-          <Descriptions.Item label={<span><MedicineBoxOutlined /> Khoa công tác chuyên môn</span>} span={2}>
-            <Tag color="cyan" style={{ fontSize: 13, padding: '4px 10px' }}>
-              👨‍⚕️ {user.department}
-            </Tag>
-          </Descriptions.Item>
+        {user?.roles?.includes('ROLE_DOCTOR') && (
+          <>
+            <Descriptions.Item label={<span><MedicineBoxOutlined /> Bệnh viện công tác</span>}>
+              <Text strong style={{ color: '#0f766e' }}>{user?.hospitalName || 'Bệnh viện Đa Khoa'}</Text>
+            </Descriptions.Item>
+            <Descriptions.Item label={<span><MedicineBoxOutlined /> Khoa chuyên môn</span>}>
+              <Tag color="cyan" style={{ fontSize: 13, padding: '2px 8px' }}>
+                👨‍⚕️ {user?.department || 'Khoa Khám Bệnh'}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={<span>Chuyên khoa kỹ thuật</span>}>
+              <Tag color="geekblue">{user?.specialtyCode || 'Chuyên khoa Nội'}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label={<span>Số chứng chỉ hành nghề</span>}>
+              <Text copyable code>CCHN-{user?.id ? String(user.id).padStart(5, '0') : '84012'}/BYT</Text>
+            </Descriptions.Item>
+          </>
         )}
       </Descriptions>
     </div>

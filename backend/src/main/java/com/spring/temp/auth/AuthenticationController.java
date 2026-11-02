@@ -50,6 +50,16 @@ public class AuthenticationController {
         return ResponseEntity.ok(ApiResponse.success(userProfile, "Lấy thông tin tài khoản thành công!"));
     }
 
+    @PutMapping("/profile")
+    @Operation(summary = "1.3.1 Cập nhật thông tin tài khoản", description = "Cập nhật họ tên, số điện thoại, ngày sinh và khoa chuyên môn (Bác sĩ)")
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> updateProfile(
+            @RequestBody UpdateProfileRequest request,
+            Principal connectedUser
+    ) {
+        UserSummaryResponse updated = service.updateProfile(request, connectedUser);
+        return ResponseEntity.ok(ApiResponse.success(updated, "Cập nhật thông tin tài khoản thành công!"));
+    }
+
     @PostMapping("/change-password")
     @Operation(summary = "1.4 Đổi mật khẩu", description = "Đổi mật khẩu người dùng hiện tại, yêu cầu nhập đúng mật khẩu cũ.")
     public ResponseEntity<ApiResponse<Void>> changePassword(
@@ -60,13 +70,14 @@ public class AuthenticationController {
         return ResponseEntity.ok(ApiResponse.success(null, "Đổi mật khẩu thành công!"));
     }
 
-    @GetMapping("/refreshToken")
-    @Operation(summary = "1.5 Làm mới token (Refresh Token)", description = "Cấp lại Access Token mới khi token cũ hết hạn.")
+    @RequestMapping(value = {"/refreshToken", "/refresh-token"}, method = {RequestMethod.GET, RequestMethod.POST})
+    @Operation(summary = "1.5 Làm mới token (Refresh Token)", description = "Cấp lại Access Token mới khi token cũ hết hạn qua Header, Cookie hoặc Body JSON.")
     public ResponseEntity<ApiResponse<AuthenticationResponse>> refreshToken(
+            @RequestBody(required = false) RefreshTokenRequest bodyRequest,
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        AuthenticationResponse authResponse = service.refreshToken(request, response);
+        AuthenticationResponse authResponse = service.refreshToken(request, response, bodyRequest);
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Làm mới Token thành công!"));
     }
 

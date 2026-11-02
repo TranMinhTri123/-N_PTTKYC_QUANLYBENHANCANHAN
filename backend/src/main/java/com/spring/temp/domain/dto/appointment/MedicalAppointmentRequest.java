@@ -16,8 +16,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class MedicalAppointmentRequest {
 
-    @NotNull(message = "ID hồ sơ không được để trống")
     private Long profileId;
+
+    private Long patientId;
 
     private Long medicalRecordId;
 
@@ -28,14 +29,20 @@ public class MedicalAppointmentRequest {
 
     private String doctorName;
 
+    private Long doctorId;
+
+    private String patientPhone;
+
     @NotNull(message = "Thời gian hẹn không được để trống")
     @FutureOrPresent(message = "Thời gian hẹn khám phải từ thời điểm hiện tại trở đi")
     private LocalDateTime appointmentTime;
 
+    private LocalDateTime rescheduledTime;
+
     private AppointmentType appointmentType;
 
     @Builder.Default
-    private AppointmentStatus status = AppointmentStatus.SCHEDULED;
+    private AppointmentStatus status = AppointmentStatus.PENDING;
 
     @Builder.Default
     private Boolean reminderEnabled = true;

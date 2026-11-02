@@ -378,7 +378,7 @@ export const LandingPage = () => {
                   BSCK2 Trần Văn Minh
                 </Title>
                 <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 10, fontWeight: 500 }}>
-                  20+ năm kinh nghiệm • Bệnh viện Chợ Rẫy TP.HCM
+                  20+ năm kinh nghiệm • Bệnh viện Đa khoa PHR
                 </Text>
                 <Paragraph style={{ color: '#475569', fontSize: 14, lineHeight: 1.6, flex: 1, margin: 0 }}>
                   Chuyên gia phẫu thuật khớp, điều trị thoái hóa cột sống, chấn thương thể thao và theo dõi phục hồi chức năng vận động toàn diện.

@@ -39,13 +39,22 @@ axiosClient.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const res = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
-            refreshToken,
-          });
+          const res = await axios.post(
+            `${API_BASE_URL}/auth/refresh-token`,
+            { refreshToken },
+            {
+              headers: {
+                Authorization: `Bearer ${refreshToken}`,
+              },
+            }
+          );
 
           if (res.data && res.data.data && res.data.data.token) {
             const newToken = res.data.data.token;
             localStorage.setItem('token', newToken);
+            if (res.data.data.refreshToken) {
+              localStorage.setItem('refreshToken', res.data.data.refreshToken);
+            }
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return axiosClient(originalRequest);
           }

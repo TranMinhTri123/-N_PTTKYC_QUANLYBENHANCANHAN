@@ -137,6 +137,44 @@ public class AuthenticationService {
                 .dateOfBirth(user.getDateOfBirth())
                 .roles(user.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
                 .department(user.getDepartment())
+                .hospitalName(user.getHospitalName())
+                .specialtyCode(user.getSpecialtyCode())
+                .build();
+    }
+
+    @Transactional
+    public UserSummaryResponse updateProfile(UpdateProfileRequest request, Principal connectedUser) {
+        User user = getAuthenticatedUser(connectedUser);
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName().trim());
+        if (request.getLastName() != null) user.setLastName(request.getLastName().trim());
+        if (request.getPhone() != null) user.setPhone(request.getPhone().trim());
+        if (request.getDateOfBirth() != null) user.setDateOfBirth(request.getDateOfBirth());
+
+        boolean isDoctor = user.getRoles().stream().anyMatch(r -> "ROLE_DOCTOR".equals(r.getName()));
+        if (isDoctor) {
+            if (request.getDepartment() != null && !request.getDepartment().isBlank()) {
+                user.setDepartment(request.getDepartment().trim());
+            }
+            if (request.getSpecialtyCode() != null && !request.getSpecialtyCode().isBlank()) {
+                user.setSpecialtyCode(request.getSpecialtyCode().trim());
+            }
+            if (user.getHospitalName() == null || user.getHospitalName().isBlank()) {
+                user.setHospitalName("Bệnh viện Đa khoa PHR");
+            }
+        }
+        User saved = userRepository.save(user);
+        return UserSummaryResponse.builder()
+                .id(saved.getId())
+                .email(saved.getEmail())
+                .firstName(saved.getFirstName())
+                .lastName(saved.getLastName())
+                .fullName(saved.fullName())
+                .phone(saved.getPhone())
+                .dateOfBirth(saved.getDateOfBirth())
+                .roles(saved.getRoles().stream().map(Role::getName).collect(Collectors.toList()))
+                .department(saved.getDepartment())
+                .hospitalName(saved.getHospitalName())
+                .specialtyCode(saved.getSpecialtyCode())
                 .build();
     }
 
@@ -158,16 +196,27 @@ public class AuthenticationService {
     }
 
     public AuthenticationResponse refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        return refreshToken(request, response, null);
+    }
+
+    public AuthenticationResponse refreshToken(HttpServletRequest request, HttpServletResponse response, RefreshTokenRequest bodyRequest) {
         String jwtRefreshToken = null;
 
-        // Try extracting from Authorization header first (Bearer <token>)
-        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            jwtRefreshToken = authHeader.substring(7);
+        // Try extracting from body first if provided
+        if (bodyRequest != null && bodyRequest.getRefreshToken() != null && !bodyRequest.getRefreshToken().isBlank()) {
+            jwtRefreshToken = bodyRequest.getRefreshToken().trim();
+        }
+
+        // Try extracting from Authorization header (Bearer <token>)
+        if (jwtRefreshToken == null && request != null) {
+            final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                jwtRefreshToken = authHeader.substring(7);
+            }
         }
 
         // Fallback to cookie
-        if (jwtRefreshToken == null) {
+        if (jwtRefreshToken == null && request != null) {
             Cookie cookie = WebUtils.getCookie(request, "refreshToken");
             if (cookie != null) {
                 jwtRefreshToken = cookie.getValue();
@@ -324,6 +373,10 @@ public class AuthenticationService {
                 .email(user.getEmail())
                 .fullName(user.fullName())
                 .phone(user.getPhone())
+                .dateOfBirth(user.getDateOfBirth())
+                .department(user.getDepartment())
+                .hospitalName(user.getHospitalName())
+                .specialtyCode(user.getSpecialtyCode())
                 .roles(roleNames)
                 .build();
     }

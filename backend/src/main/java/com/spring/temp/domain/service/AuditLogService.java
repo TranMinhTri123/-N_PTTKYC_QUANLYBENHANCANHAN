@@ -20,6 +20,11 @@ public class AuditLogService {
 
     @Transactional
     public void recordLog(Long userId, String action, String entityName, Long entityId, String ipAddress) {
+        recordLog(userId, action, entityName, entityId, ipAddress, "Thành công");
+    }
+
+    @Transactional
+    public void recordLog(Long userId, String action, String entityName, Long entityId, String ipAddress, String details) {
         User user = null;
         if (userId != null) {
             user = userRepository.findById(userId).orElse(null);
@@ -30,6 +35,7 @@ public class AuditLogService {
                 .entityName(entityName)
                 .entityId(entityId)
                 .ipAddress(ipAddress != null ? ipAddress : "127.0.0.1")
+                .details(details != null ? details : "Thành công")
                 .build();
         auditLogRepository.save(log);
     }
@@ -40,16 +46,37 @@ public class AuditLogService {
                 .map(this::mapToResponse);
     }
 
+    @Transactional(readOnly = true)
+    public Page<AuditLogResponse> getMyLogs(Long currentUserId, Pageable pageable) {
+        return auditLogRepository.findByUserIdOrderByCreatedAtDesc(currentUserId, pageable)
+                .map(this::mapToResponse);
+    }
+
     private AuditLogResponse mapToResponse(AuditLog log) {
+        String username = null;
+        if (log.getUser() != null) {
+            String fullName = log.getUser().fullName();
+            if (fullName != null && !fullName.isBlank()) {
+                username = fullName.trim();
+            } else {
+                username = log.getUser().getEmail();
+            }
+        }
+        if (username == null || username.isBlank()) {
+            username = "Hệ thống";
+        }
+
         return AuditLogResponse.builder()
                 .id(log.getId())
                 .userId(log.getUser() != null ? log.getUser().getId() : null)
                 .userEmail(log.getUser() != null ? log.getUser().getEmail() : null)
                 .userFullName(log.getUser() != null ? log.getUser().fullName() : null)
+                .username(username)
                 .action(log.getAction())
                 .entityName(log.getEntityName())
                 .entityId(log.getEntityId())
-                .ipAddress(log.getIpAddress())
+                .ipAddress(log.getIpAddress() != null ? log.getIpAddress() : "127.0.0.1")
+                .details(log.getDetails() != null ? log.getDetails() : "Thao tác thực thi thành công")
                 .createdAt(log.getCreatedAt())
                 .build();
     }

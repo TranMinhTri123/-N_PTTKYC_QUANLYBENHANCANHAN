@@ -7,12 +7,21 @@ import dayjs from 'dayjs';
  * @returns {object} { bmi, classification, tagColor }
  */
 export const calculateBmi = (heightCm, weightKg) => {
-  if (!heightCm || !weightKg || heightCm <= 0 || weightKg <= 0) {
+  let h = Number(heightCm);
+  let w = Number(weightKg);
+  if (!h || !w || h <= 0 || w <= 0) {
     return { bmi: null, classification: 'Chưa đủ dữ liệu', tagColor: 'default' };
   }
 
-  const heightM = heightCm / 100;
-  const bmi = Number((weightKg / (heightM * heightM)).toFixed(1));
+  // Tự động bảo vệ chống đảo nhầm thứ tự tham số (cân nặng, chiều cao)
+  if (h < 50 && w >= 50) {
+    const temp = h;
+    h = w;
+    w = temp;
+  }
+
+  const heightM = h / 100;
+  const bmi = Number((w / (heightM * heightM)).toFixed(1));
 
   let classification = '';
   let tagColor = 'default';

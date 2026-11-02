@@ -12,6 +12,8 @@ import {
   Alert,
   Spin,
   Badge,
+  Popconfirm,
+  notification,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -23,6 +25,8 @@ import {
   InfoCircleOutlined,
   UserOutlined,
   SafetyCertificateOutlined,
+  DeleteOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import medicalRecordService from '../../services/medicalRecordService';
@@ -98,6 +102,7 @@ export const PatientRecordDetailPage = () => {
       SURGICAL: { label: 'Bệnh Án Ngoại Khoa (Phẫu thuật)', color: 'orange' },
       PEDIATRIC: { label: 'Bệnh Án Nhi Khoa', color: 'green' },
       OBSTETRIC: { label: 'Bệnh Án Sản Khoa', color: 'magenta' },
+      GENERAL: { label: 'Khám Bệnh Chung', color: 'cyan' },
     };
     const t = map[record?.recordType] || { label: record?.recordType || 'Bệnh Án', color: 'cyan' };
     return <Tag color={t.color} style={{ fontSize: 13, padding: '3px 10px', borderRadius: 4 }}>{t.label}</Tag>;
@@ -342,19 +347,47 @@ export const PatientRecordDetailPage = () => {
         </Card>
       )}
 
-      {/* VII. Chi Tiết Nội Khoa */}
+      {/* VII. Chi Tiết Sản Khoa */}
+      {obstetricDetail && (
+        <Card
+          title={<span style={{ color: '#c026d3' }}>IV. Chi Tiết Bệnh Án Sản Khoa</span>}
+          style={{ borderRadius: 12, marginBottom: 16, borderColor: '#f0abfc' }}
+        >
+          <Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 4 }}>
+            <Descriptions.Item label="Ngày kinh cuối (LMP)">{obstetricDetail.lmpDate ? formatDate(obstetricDetail.lmpDate) : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Ngày dự sinh (EDD)">{obstetricDetail.eddDate ? formatDate(obstetricDetail.eddDate) : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Tuổi thai">{obstetricDetail.gestationalAgeWeeks ? `${obstetricDetail.gestationalAgeWeeks} tuần` : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Chỉ số PARA">{`${obstetricDetail.paraTerm || 0}-${obstetricDetail.paraPreterm || 0}-${obstetricDetail.paraAbortion || 0}-${obstetricDetail.paraLiving || 0}`}</Descriptions.Item>
+            <Descriptions.Item label="Phương pháp sinh">{obstetricDetail.deliveryMethod || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Cân nặng bé">{obstetricDetail.newbornWeightGrams ? `${obstetricDetail.newbornWeightGrams} gram` : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Tình trạng hậu sản" span={2}>{obstetricDetail.postpartumCondition || '-'}</Descriptions.Item>
+          </Descriptions>
+        </Card>
+      )}
+
+      {/* VIII. Chi Tiết Nội Khoa / Khám Chung */}
       {internalDetail && (
         <Card
-          title={<span style={{ color: '#0284c7' }}>IV. Chi Tiết Khám Chuyên Khoa Nội (MS: 01/BV-01)</span>}
+          title={<span style={{ color: '#0284c7' }}>IV. Chi Tiết Khám Chuyên Khoa {record?.recordType === 'GENERAL' ? 'Tổng Quát / Khám Bệnh Chung' : 'Nội (MS: 01/BV-01)'}</span>}
           style={{ borderRadius: 12, marginBottom: 16 }}
         >
           <Descriptions bordered size="small" column={{ xs: 1, sm: 3 }}>
-            <Descriptions.Item label="Hệ tuần hoàn">{internalDetail.circulatorySystem || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Hệ hô hấp">{internalDetail.respiratorySystem || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Hệ tiêu hóa">{internalDetail.digestiveSystem || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Hệ nội tiết">{internalDetail.endocrineSystem || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Hệ thần kinh">{internalDetail.nervousSystem || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Hệ cơ xương khớp">{internalDetail.musculoskeletalSystem || '-'}</Descriptions.Item>
+            <Descriptions.Item label={record?.recordType === 'GENERAL' ? 'Khám toàn thân' : 'Hệ tuần hoàn'}>
+              {internalDetail.circulatorySystem || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label={record?.recordType === 'GENERAL' ? 'Hạch & Tuyến giáp' : 'Hệ nội tiết'}>
+              {internalDetail.endocrineSystem || internalDetail.respiratorySystem || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label={record?.recordType === 'GENERAL' ? 'Hội chứng lâm sàng' : 'Theo dõi bệnh mạn'}>
+              {internalDetail.chronicMonitoringSummary || internalDetail.digestiveSystem || '-'}
+            </Descriptions.Item>
+            {record?.recordType !== 'GENERAL' && (
+              <>
+                <Descriptions.Item label="Hệ hô hấp">{internalDetail.respiratorySystem || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Hệ thần kinh">{internalDetail.nervousSystem || '-'}</Descriptions.Item>
+                <Descriptions.Item label="Hệ cơ xương khớp">{internalDetail.musculoskeletalSystem || '-'}</Descriptions.Item>
+              </>
+            )}
           </Descriptions>
         </Card>
       )}

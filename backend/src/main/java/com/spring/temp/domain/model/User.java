@@ -39,15 +39,17 @@ public class User implements UserDetails, Principal {
     private boolean accountLocked;
     private boolean enabled;
     private String department; // Khoa / Chuyên khoa công tác (dành cho Bác sĩ)
+    private String hospitalName; // Bệnh viện công tác (dành cho Bác sĩ)
+    private String specialtyCode; // Mã chuyên khoa: INTERNAL, SURGICAL, OBSTETRIC, PEDIATRIC, GENERAL
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserPatientLink patientLink;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<HealthProfile> healthProfiles;
 
     @ManyToMany(fetch = FetchType.EAGER)
     private List<Role> roles;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    private List<Page> pages;
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

@@ -29,6 +29,7 @@ public class ClinicalInvestigationController {
 
     @PostMapping("lab-tests")
     @ResponseStatus(HttpStatus.CREATED)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "5.1 Thêm kết quả xét nghiệm cận lâm sàng", 
                description = "Lưu kết quả xét nghiệm máu, sinh hóa, nước tiểu kèm khoảng tham chiếu và đánh giá bất thường")
     public ResponseEntity<ApiResponse<LabTestResultResponse>> addLabTest(
@@ -52,6 +53,7 @@ public class ClinicalInvestigationController {
     }
 
     @DeleteMapping("lab-tests/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "5.3 Xóa kết quả xét nghiệm", 
                description = "Xóa một chỉ số xét nghiệm")
     public ResponseEntity<ApiResponse<Void>> deleteLabTest(
@@ -68,6 +70,7 @@ public class ClinicalInvestigationController {
 
     @PostMapping("imaging")
     @ResponseStatus(HttpStatus.CREATED)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "5.4 Thêm kết quả chẩn đoán hình ảnh (CĐHA)", 
                description = "Ghi nhận kết quả X-quang, Siêu âm, CT Scanner, MRI, Điện tim (ECG) kèm mô tả tổn thương và kết luận")
     public ResponseEntity<ApiResponse<ImagingResultResponse>> addImagingResult(
@@ -91,6 +94,7 @@ public class ClinicalInvestigationController {
     }
 
     @DeleteMapping("imaging/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "5.6 Xóa kết quả chẩn đoán hình ảnh", 
                description = "Xóa một kết quả chụp chiếu")
     public ResponseEntity<ApiResponse<Void>> deleteImagingResult(
@@ -107,6 +111,7 @@ public class ClinicalInvestigationController {
 
     @PostMapping("attachments")
     @ResponseStatus(HttpStatus.CREATED)
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "5.7 Đính kèm tệp kết quả y tế", 
                description = "Lưu thông tin metadata của tài liệu y tế (hình ảnh X-quang, phiếu kết quả PDF)")
     public ResponseEntity<ApiResponse<MedicalAttachmentResponse>> addAttachment(
@@ -130,6 +135,7 @@ public class ClinicalInvestigationController {
     }
 
     @DeleteMapping("attachments/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR', 'ADMIN')")
     @Operation(summary = "5.9 Xóa mềm tệp đính kèm", 
                description = "Đánh dấu xóa mềm tệp đính kèm (deleted = true)")
     public ResponseEntity<ApiResponse<Void>> deleteAttachment(
@@ -138,5 +144,26 @@ public class ClinicalInvestigationController {
     ) {
         clinicalService.deleteAttachment(id, connectedUser);
         return ResponseEntity.ok(ApiResponse.success(null, "Xóa tệp đính kèm thành công!"));
+    }
+
+    @GetMapping("attachments/{id}/access-ticket")
+    @Operation(summary = "5.10 Cấp ticket tải tệp cận lâm sàng an toàn (15 phút)", 
+               description = "Sinh một ticket mã hóa có thời hạn 15 phút để tải tệp X-quang hoặc PDF kết quả")
+    public ResponseEntity<ApiResponse<String>> getAttachmentTicket(
+            @PathVariable Long id,
+            Principal connectedUser
+    ) {
+        String ticket = clinicalService.generateAttachmentTicket(id, connectedUser);
+        return ResponseEntity.ok(ApiResponse.success(ticket, "Cấp ticket tải tệp thành công (Thời hạn 15 phút)"));
+    }
+
+    @GetMapping("files/stream")
+    @Operation(summary = "5.11 Tải tệp bảo mật bằng ticket", 
+               description = "Kiểm tra ticket và truyền tải nội dung tệp")
+    public ResponseEntity<ApiResponse<com.spring.temp.domain.model.MedicalAttachment>> streamFile(
+            @RequestParam String ticket
+    ) {
+        com.spring.temp.domain.model.MedicalAttachment attachment = clinicalService.validateTicketAndGetAttachment(ticket);
+        return ResponseEntity.ok(ApiResponse.success(attachment, "Xác thực ticket hợp lệ"));
     }
 }

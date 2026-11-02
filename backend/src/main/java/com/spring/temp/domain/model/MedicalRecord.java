@@ -27,9 +27,38 @@ public class MedicalRecord {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id", nullable = false)
+    @JoinColumn(name = "profile_id")
     @JsonIgnore
     private HealthProfile profile;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id")
+    @JsonIgnore
+    private Patient patient;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "doctor_user_id")
+    @JsonIgnore
+    private User doctor;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    @Builder.Default
+    private EncounterStatus status = EncounterStatus.PUBLISHED;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String doctorInternalNotes;
+
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String advice;
+
+    @Builder.Default
+    private Integer version = 1;
+
+    @Builder.Default
+    private Boolean isLatest = true;
+
+    private LocalDateTime publishedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
