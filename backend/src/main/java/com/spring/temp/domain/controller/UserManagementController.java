@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -59,17 +60,31 @@ public class UserManagementController {
         Role newRole = roleRepository.findByName(roleName)
                 .orElseGet(() -> roleRepository.save(Role.builder().name(roleName).build()));
 
-        // Cập nhật danh sách quyền và khoa chuyên môn cho tài khoản
-        user.setRoles(List.of(newRole));
+        // Cập nhật danh sách quyền an toàn cho Hibernate (sử dụng ArrayList có thể thay đổi)
+        List<Role> rolesList = new ArrayList<>();
+        rolesList.add(newRole);
+        user.setRoles(rolesList);
+
         if ("ROLE_DOCTOR".equals(roleName)) {
-            user.setDepartment(request.getDepartment() != null && !request.getDepartment().isBlank() 
-                    ? request.getDepartment().trim() 
-                    : "Khoa Nội Tổng Hợp");
-            if (request.getHospitalName() != null && !request.getHospitalName().isBlank()) {
-                user.setHospitalName(request.getHospitalName().trim());
-            }
-            if (request.getSpecialtyCode() != null && !request.getSpecialtyCode().isBlank()) {
-                user.setSpecialtyCode(request.getSpecialtyCode().trim());
+            String dept = (request.getDepartment() != null && !request.getDepartment().isBlank())
+                    ? request.getDepartment().trim()
+                    : "Khoa Nội Tổng Hợp";
+            user.setDepartment(dept);
+            user.setHospitalName("Bệnh viện Đa khoa PHR");
+
+            // Tự động đồng bộ Specialty Code cho 4 chuyên khoa y tế chuẩn
+            if ("Khoa Nội Tổng Hợp".equalsIgnoreCase(dept) || dept.toLowerCase().contains("nội")) {
+                user.setSpecialtyCode("INTERNAL");
+            } else if ("Khoa Ngoại Tổng Quát".equalsIgnoreCase(dept) || dept.toLowerCase().contains("ngoại")) {
+                user.setSpecialtyCode("SURGICAL");
+            } else if ("Khoa Nhi".equalsIgnoreCase(dept) || dept.toLowerCase().contains("nhi")) {
+                user.setSpecialtyCode("PEDIATRIC");
+            } else if ("Khoa Phụ Sản".equalsIgnoreCase(dept) || dept.toLowerCase().contains("sản")) {
+                user.setSpecialtyCode("OBSTETRIC");
+            } else {
+                user.setSpecialtyCode(request.getSpecialtyCode() != null && !request.getSpecialtyCode().isBlank()
+                        ? request.getSpecialtyCode().trim()
+                        : "INTERNAL");
             }
         } else if ("ROLE_USER".equals(roleName)) {
             user.setDepartment(null);
@@ -86,7 +101,8 @@ public class UserManagementController {
                 "UPDATE_ROLE_" + roleName + (user.getDepartment() != null ? "_DEPT_" + user.getDepartment() : ""),
                 "USER",
                 user.getId(),
-                "127.0.0.1"
+                "127.0.0.1",
+                "Cấp quyền " + roleName + " - Khoa: " + (user.getDepartment() != null ? user.getDepartment() : "Không")
         );
 
         return ResponseEntity.ok(ApiResponse.success(mapToResponse(saved), "Cập nhật quyền và chuyên khoa thành công cho người dùng!"));

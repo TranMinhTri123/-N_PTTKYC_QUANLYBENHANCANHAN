@@ -37,21 +37,12 @@ import { useAuth } from '../../context/AuthContext';
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-// Danh mục các chuyên khoa y tế chuẩn
+// Danh mục 4 Chuyên khoa y tế chuẩn theo đề tài (Bệnh viện Đa khoa PHR)
 const STANDARD_DEPARTMENTS = [
-  'Khoa Tim Mạch & Lão Khoa',
-  'Khoa Nhi & Dị Ứng Miễn Dịch',
-  'Khoa Ngoại Chấn Thương Chỉnh Hình',
-  'Khoa Mắt & Tai Mũi Họng',
-  'Khoa Thần Kinh & Hồi Sức Cấp Cứu',
-  'Khoa Sản Phụ Khoa',
-  'Khoa Nội Tổng Hợp',
-  'Khoa Ngoại Tiêu Hóa',
-  'Khoa Hồi Sức Tích Cực (ICU)',
-  'Khoa Ung Bướu & Y Học Hạt Nhân',
-  'Khoa Răng Hàm Mặt',
-  'Khoa Chẩn Đoán Hình Ảnh',
-  'Khoa Khám Bệnh Đa Khoa',
+  { value: 'Khoa Nội Tổng Hợp', label: 'Khoa Nội Tổng Hợp (Chuyên khoa Nội)', code: 'INTERNAL' },
+  { value: 'Khoa Ngoại Tổng Quát', label: 'Khoa Ngoại Tổng Quát (Chuyên khoa Ngoại)', code: 'SURGICAL' },
+  { value: 'Khoa Nhi', label: 'Khoa Nhi (Chuyên khoa Nhi)', code: 'PEDIATRIC' },
+  { value: 'Khoa Phụ Sản', label: 'Khoa Phụ Sản (Chuyên khoa Sản)', code: 'OBSTETRIC' },
 ];
 
 export const AdminUsersPage = () => {
@@ -98,7 +89,7 @@ export const AdminUsersPage = () => {
   const handleOpenDoctorModal = (targetUser) => {
     setSelectedUserForDoctor(targetUser);
     modalForm.setFieldsValue({
-      department: targetUser.department || 'Khoa Tim Mạch & Lão Khoa',
+      department: targetUser.department || 'Khoa Nội Tổng Hợp',
     });
     setDoctorModalVisible(true);
   };
@@ -423,19 +414,17 @@ export const AdminUsersPage = () => {
         <Form form={modalForm} layout="vertical">
           <Form.Item
             name="department"
-            label={<strong style={{ fontSize: 14 }}>Chọn Khoa / Chuyên Khoa Công Tác</strong>}
-            rules={[{ required: true, message: 'Vui lòng chọn hoặc nhập khoa chuyên môn!' }]}
-            extra="Bạn có thể chọn từ danh sách có sẵn hoặc gõ trực tiếp tên chuyên khoa mới."
+            label={<strong style={{ fontSize: 14 }}>Chọn Khoa Chuyên Môn Công Tác</strong>}
+            rules={[{ required: true, message: 'Vui lòng chọn khoa chuyên môn cho bác sĩ!' }]}
+            extra="Chỉ định bác sĩ vào 1 trong 4 chuyên khoa y tế chuẩn của bệnh viện (Nội, Ngoại, Nhi, Sản)."
           >
             <Select
-              showSearch
-              placeholder="Chọn hoặc nhập tên khoa..."
+              placeholder="Chọn khoa chuyên môn..."
               size="large"
-              dropdownMatchSelectWidth={false}
             >
               {STANDARD_DEPARTMENTS.map((dept) => (
-                <Option key={dept} value={dept}>
-                  {dept}
+                <Option key={dept.value} value={dept.value}>
+                  {dept.label}
                 </Option>
               ))}
             </Select>
